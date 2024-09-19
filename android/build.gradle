@@ -1,9 +1,9 @@
 buildscript {
     ext {
-        buildToolsVersion = "34.0.0"
-        minSdkVersion = 23
-        compileSdkVersion = 34
-        targetSdkVersion = 34
+        buildToolsVersion = "29.0.2"
+        minSdkVersion = 24
+        compileSdkVersion = 29
+        targetSdkVersion = 29
         ndkVersion = "26.1.10909125"
         kotlinVersion = "1.9.24"
     }
@@ -19,3 +19,13 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven {
+            url "https://dl.cloudsmith.io/public/cometchat/cometchat-pro-android/maven/"  // Add CometChat repository
+        }
+    }
+}
