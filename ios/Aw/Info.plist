@@ -26,11 +26,10 @@
 	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-	  <!-- Do not change NSAllowsArbitraryLoads to true, or you will risk app rejection! -->
-		<key>NSAllowsArbitraryLoads</key>
-		<false/>
-		<key>NSAllowsLocalNetworking</key>
-		<true/>
+	  <key>NSAllowsArbitraryLoads</key>
+	  <false/>
+	  <key>NSAllowsLocalNetworking</key>
+	  <true/>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string></string>
@@ -52,5 +51,12 @@
 	<string>This is for Camera permission</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This is for Mic permission</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>FontAwesome.ttf</string>
+		<string>FontAwesome5Brands.ttf</string>
+		<string>FontAwesome5Regular.ttf</string>
+		<string>FontAwesome5Solid.ttf</string>
+	</array>
 </dict>
 </plist>

@@ -1,19 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Modal, FlatList, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, Image, TouchableOpacity, Modal, FlatList, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { CometChat } from '@cometchat/chat-sdk-react-native';
+import Icon from 'react-native-vector-icons/FontAwesome';
+import { styles } from '../styles/HomeStyle'
 
 const Home = () => {
     const navigation = useNavigation();
-    const [modalVisible, setModalVisible] = useState(true);
     const [isGroupModalVisible, setGroupModalVisible] = useState(false);
     const [users, setUsers] = useState([]);
     const [groups, setGroups] = useState([]);
     const [loading, setLoading] = useState(true);
     const [groupName, setGroupName] = useState('');
     const [selectedFriends, setSelectedFriends] = useState([]);
+    const [isUserOnline, setIsUserOnline] = useState(null);
 
     useEffect(() => {
+        const listenerID = `listener_${users.uid}`;
         const fetchUsersAndGroups = async () => {
             setLoading(true);
             try {
@@ -29,6 +32,34 @@ const Home = () => {
             }
         };
         fetchUsersAndGroups();
+
+
+        CometChat.addUserListener(listenerID, {
+            onUserOnline: (onlineUser) => {
+                if (onlineUser.uid === user.uid) {
+                    setIsUserOnline(true);
+                }
+            },
+            onUserOffline: (offlineUser) => {
+                if (offlineUser.uid === user.uid) {
+                    setIsUserOnline(false);
+                }
+            },
+        });
+
+        // Fetch initial user status
+        // const fetchUserStatus = async () => {
+        //     try {
+        //         const userStatus = await CometChat.getUser(user.uid);
+        //         setIsUserOnline(userStatus.status === 'online');
+        //     } catch (error) {
+        //         console.error("Failed to fetch user status:", error);
+        //     }
+        // };
+
+        // return () =>{
+        //     CometChat.removeUserListener(listenerID);
+        // }
     }, []);
 
     const navigateToChat = (user) => navigation.navigate('Chat', { user });
@@ -100,15 +131,14 @@ const Home = () => {
             <View style={styles.header}>
                 <Image source={require('../../asset/logo.png')} style={styles.logo} />
                 <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                    <Text style={styles.logoutText}>Logout</Text>
+                <Icon name="sign-out" size={20} color="#000" />
                 </TouchableOpacity>
             </View>
-
             <View style={styles.listContainer}>
                 <View style={styles.listHeader}>
                     <Text style={styles.listHeadText}>Friends</Text>
-                    <TouchableOpacity onPress={() => setGroupModalVisible(true)}>
-                        <Text style={styles.addGroupText}>Add Group</Text>
+                    <TouchableOpacity onPress={() => {}}>
+                        <Text style={styles.addGroupText}>Add Friends</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -120,19 +150,41 @@ const Home = () => {
                             data={users}
                             keyExtractor={(item) => item.uid}
                             renderItem={({ item }) => (
-                                <TouchableOpacity style={styles.userItem} onPress={() => navigateToChat(item)}>
-                                    <Text style={styles.userName}>{item.name}</Text>
-                                </TouchableOpacity>
+                                <View>
+                                    <TouchableOpacity style={styles.userItem} onPress={() => navigateToChat(item)}>
+                                        <View style={{flexDirection:'row'}}>
+                                            <Image source={{ uri: item.avatar }} style={styles.avatar} />
+                                            <Text style={styles.userName}>{item.name}</Text>  
+                                        </View>
+                                        <View style={styles.statusContainer}>
+                                            <View style={[
+                                                styles.statusDot,
+                                                { backgroundColor: isUserOnline ? 'green' : 'grey' } // Green for online, grey for offline
+                                            ]} />
+                                                <Text style={styles.statusText}>{isUserOnline ? 'Online' : 'Offline'}</Text>
+                                             </View>
+                                    </TouchableOpacity>
+                                       
+                                </View>
+                            
                             )}
                             contentContainerStyle={styles.userList}
                         />
-
+                        <View style={styles.listHeader}>
+                            <Text style={styles.listHeadText}>Groups</Text>
+                            <TouchableOpacity onPress={() => setGroupModalVisible(true)}>
+                                <Text style={styles.addGroupText}>Add Group</Text>
+                            </TouchableOpacity>
+                        </View>
                         <FlatList
                             data={groups}
                             keyExtractor={(item) => item.guid}
                             renderItem={({ item }) => (
                                 <TouchableOpacity style={styles.groupItem} onPress={() => navigateToGroupChat(item)}>
-                                    <Text style={styles.groupName}>{item.name}</Text>
+                                    <View style ={{flexDirection:'row'}}>
+                                        <Image source={{ uri: item.icon }} style={styles.avatar} />
+                                        <Text style={styles.groupName}>{item.name}</Text>
+                                    </View>
                                     <TouchableOpacity onPress={() => deleteGroup(item)}>
                                         <Text style={styles.deleteGroupText}>Delete</Text>
                                     </TouchableOpacity>
@@ -191,125 +243,5 @@ const Home = () => {
     );
 };
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        padding: 20,
-        backgroundColor: '#e5ddd5',
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: 40,
-    },
-    logo: {
-        width: 40,
-        height: 40,
-    },
-    logoutButton: {
-        padding: 10,
-    },
-    logoutText: {
-        fontSize: 16,
-        color: '#6200ee',
-    },
-    listContainer: {
-        flex: 1,
-        marginTop: 20,
-    },
-    listHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 10,
-    },
-    listHeadText: {
-        fontSize: 24,
-        fontWeight: 'bold',
-    },
-    addGroupText: {
-        fontSize: 16,
-        color: '#6200ee',
-    },
-    userItem: {
-        padding: 15,
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        marginBottom: 10,
-        elevation: 1,
-    },
-    userName: {
-        fontSize: 18,
-        color: '#333',
-    },
-    groupItem: {
-        padding: 15,
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        marginBottom: 10,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        elevation: 1,
-    },
-    groupName: {
-        fontSize: 18,
-        color: '#333',
-    },
-    deleteGroupText: {
-        fontSize: 16,
-        color: '#ff0000',
-    },
-    modalBackground: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    },
-    modalContainer: {
-        width: '80%',
-        backgroundColor: '#fff',
-        borderRadius: 10,
-        padding: 20,
-        elevation: 5,
-    },
-    modalTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: 15,
-    },
-    input: {
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 5,
-        padding: 10,
-        marginBottom: 15,
-    },
-    modalUserList: {
-        maxHeight: 150,
-    },
-    selectedUser: {
-        backgroundColor: '#cfe9c6',
-    },
-    createGroupButton: {
-        backgroundColor: '#6200ee',
-        borderRadius: 5,
-        padding: 10,
-        alignItems: 'center',
-        marginVertical: 10,
-    },
-    createGroupButtonText: {
-        color: '#fff',
-        fontWeight: 'bold',
-    },
-    closeButton: {
-        alignItems: 'center',
-        padding: 10,
-    },
-    closeButtonText: {
-        color: '#6200ee',
-    },
-});
-
 export default Home;
+
