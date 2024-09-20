@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, TextInput, TouchableOpacity, FlatList, Text, StyleSheet, KeyboardAvoidingView, Platform, Image, SafeAreaView } from 'react-native';
+import { View, TextInput, TouchableOpacity, FlatList, Text, StyleSheet, KeyboardAvoidingView, Platform, Image, SafeAreaView, Alert } from 'react-native';
 import { CometChat } from '@cometchat/chat-sdk-react-native';
 import { AppConstants } from '../../../AppConstants';
 
@@ -7,19 +7,12 @@ const ChatScreen = ({ navigation, route }) => {
     const { user } = route.params;
     const [messages, setMessages] = useState([]);
     const [text, setText] = useState('');
-
+    const [editingMessageId, setEditingMessageId] = useState(null);
     const currentUserID = AppConstants.UID;
-
-    // CometChat.getUnreadMessageCountForUser(AppConstants.UID).then(
-    //     array => {
-    //       console.log("Message count fetched", array);
-    //     }, error => {
-    //       console.log("Error in getting message count", error);
-    //     }
-    //     );
 
     useEffect(() => {
         const listenerID = `listener_${user.uid}`;
+        
         CometChat.addMessageListener(listenerID, {
             onTextMessageReceived: (message) => {
                 setMessages((prevMessages) => [...prevMessages, message]);
@@ -27,7 +20,7 @@ const ChatScreen = ({ navigation, route }) => {
         });
 
         const fetchPreviousMessages = async () => {
-            let messagesRequest = new CometChat.MessagesRequestBuilder()
+            const messagesRequest = new CometChat.MessagesRequestBuilder()
                 .setUID(user.uid)
                 .setLimit(30)
                 .build();
@@ -51,44 +44,72 @@ const ChatScreen = ({ navigation, route }) => {
     const sendMessage = () => {
         if (text.trim() === '') return;
 
-        let receiverID = user.uid;
-        let messageText = text;
-        let receiverType = CometChat.RECEIVER_TYPE.USER;
+        let textMessage = new CometChat.TextMessage(user.uid, text, CometChat.RECEIVER_TYPE.USER);
+        
+        if (editingMessageId) {
+            textMessage.setId(editingMessageId);
+            CometChat.editMessage(textMessage).then(editedMessage => {
+                setMessages(prevMessages =>
+                    prevMessages.map(msg =>
+                        msg.id === editingMessageId ? { ...editedMessage, edited: true } : msg
+                    )
+                );
+                resetInput();
+            }).catch(error => console.error('Message editing failed with error:', error));
+        } else {
+            CometChat.sendMessage(textMessage).then(sentMessage => {
+                setMessages(prevMessages => [sentMessage, ...prevMessages]);
+                resetInput();
+            }).catch(error => console.error('Message sending failed with error:', error));
+        }
+    };
 
-        let textMessage = new CometChat.TextMessage(receiverID, messageText, receiverType);
+    const resetInput = () => {
+        setText('');
+        setEditingMessageId(null);
+    };
 
-        CometChat.sendMessage(textMessage).then(
-            (sentMessage) => {
-                setMessages((prevMessages) => [sentMessage, ...prevMessages]);
-                setText('');
-                console.log('Message sent successfully:', sentMessage);
-            },
-            (error) => {
-                console.error('Message sending failed with error:', error);
-            }
-        );
+    const startEditingMessage = (message) => {
+        setText(message.text);
+        setEditingMessageId(message.id);
+    };
+
+    const showMessageOptions = (message) => {
+        Alert.alert("Message Options", "Choose an action:", [
+            { text: 'Edit', onPress: () => startEditingMessage(message) },
+            { text: 'Delete', onPress: () => deleteMessage(message.id) },
+            { text: 'Cancel', style: 'cancel' }
+        ]);
+    };
+
+    const deleteMessage = (messageId) => {
+        CometChat.deleteMessage(messageId).then(() => {
+            setMessages((prevMessages) => prevMessages.filter(msg => msg.id !== messageId));
+        }).catch(error => console.error("Message deletion failed with error:", error));
     };
 
     const renderMessage = ({ item }) => {
         const isSentByCurrentUser = item.sender.uid === currentUserID;
-        const isDeleted = item.type === 'deleted' || item.text === undefined;
-        
+        const isDeleted = item.type === 'deleted' || !item.text;
 
         return (
-            <View style={[
-                styles.messageBubble, 
-                isSentByCurrentUser ? styles.sentMessage : styles.receivedMessage,
-                isDeleted ? styles.deletedMessage : null
-            ]}>
-                {isDeleted ? (
-                    <Text style={styles.deletedText}>This message was deleted</Text>
-                ) : (
-                    <>
-                        <Text style={styles.messageText}>{item.text}</Text>
-                        <Text style={styles.senderName}>{item.sender.name}</Text>
-                    </>
-                )}
-            </View>
+            <TouchableOpacity onLongPress={() => isSentByCurrentUser && showMessageOptions(item)}>
+                <View style={[
+                    styles.messageBubble,
+                    isSentByCurrentUser ? styles.sentMessage : styles.receivedMessage,
+                    isDeleted ? styles.deletedMessage : null
+                ]}>
+                    {isDeleted ? (
+                        <Text style={styles.deletedText}>This message was deleted</Text>
+                    ) : (
+                        <>
+                            <Text style={styles.messageText}>{item.text}</Text>
+                            {item.edited && <Text style={styles.editedText}>(edited)</Text>}
+                            <Text style={styles.senderName}>{item.sender.name}</Text>
+                        </>
+                    )}
+                </View>
+            </TouchableOpacity>
         );
     };
 
@@ -97,10 +118,9 @@ const ChatScreen = ({ navigation, route }) => {
             <KeyboardAvoidingView 
                 style={styles.container}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={-14}
             >
                 <View style={styles.header}>
-                    <Text onPress={() => { navigation.navigate('Home') }} style={styles.backText}> Back </Text>
+                    <Text onPress={() => navigation.navigate('Home')} style={styles.backText}> Back </Text>
                     <View style={styles.headerContent}>
                         <Image source={{ uri: user.avatar }} style={styles.avatar} />
                         <Text style={styles.headerText}>{user.name}</Text>
@@ -115,6 +135,7 @@ const ChatScreen = ({ navigation, route }) => {
                     contentContainerStyle={styles.messageList}
                     inverted
                 />
+                
                 <View style={styles.inputContainer}>
                     <TextInput
                         value={text}
@@ -125,7 +146,7 @@ const ChatScreen = ({ navigation, route }) => {
                         returnKeyType="send"
                     />
                     <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
-                        <Text style={styles.sendButtonText}>Send</Text>
+                        <Text style={styles.sendButtonText}>{editingMessageId ? 'Edit' : 'Send'}</Text>
                     </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
@@ -145,11 +166,9 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        // paddingVertical: 10,
         paddingHorizontal: 10,
         position: 'relative',
-        marginBottom:30
-        // paddingBottom:36,
+        marginBottom: 30,
     },
     backText: {
         fontSize: 16,
@@ -179,23 +198,23 @@ const styles = StyleSheet.create({
     },
     messageBubble: {
         padding: 10,
-        borderRadius: 10,
+        borderRadius: 15,
         marginVertical: 5,
         maxWidth: '80%',
     },
     sentMessage: {
-        backgroundColor: '#dcf8c6',
+        backgroundColor: '#E1FFC7',
         alignSelf: 'flex-end',
         borderBottomRightRadius: 0,
     },
     receivedMessage: {
-        backgroundColor: '#e4e6eb',
+        backgroundColor: '#F0F0F0',
         alignSelf: 'flex-start',
         borderBottomLeftRadius: 0,
     },
     deletedMessage: {
         backgroundColor: 'white',
-        borderColor: '#f5c6cb',
+        borderColor: '#FFCCCB',
         borderWidth: 1,
     },
     deletedText: {
@@ -207,6 +226,11 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#000',
     },
+    editedText: {
+        fontSize: 12,
+        color: '#888',
+        marginTop: 2,
+    },
     senderName: {
         fontSize: 12,
         color: '#555',
@@ -214,29 +238,30 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-end',
     },
     inputContainer: {
+        marginTop:8,
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 10,
+        paddingVertical: 10,
         borderTopWidth: 1,
-        borderTopColor: '#e4e4e4',
-        paddingBottom: 30,
+        borderTopColor: '#DDDDDD',
     },
     input: {
         flex: 1,
-        borderWidth: 1,
-        borderColor: '#e4e4e4',
-        borderRadius: 20,
         padding: 10,
+        borderRadius: 20,
+        backgroundColor: '#F0F0F0',
         marginRight: 10,
+        borderColor: '#DDDDDD',
+        borderWidth: 1,
     },
     sendButton: {
-        backgroundColor: '#6200ee',
+        backgroundColor: '#007AFF',
         borderRadius: 20,
         paddingVertical: 10,
-        paddingHorizontal: 15,
+        paddingHorizontal: 20,
     },
     sendButtonText: {
-        color: 'white',
+        color: '#fff',
         fontWeight: 'bold',
     },
 });

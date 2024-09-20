@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CometChat } from "@cometchat/chat-sdk-react-native";
 import { AppConstants } from "../../../AppConstants";
-import { Button, Text, View, StyleSheet, Image, ActivityIndicator, Modal } from "react-native";
+import { Button, Text, View, StyleSheet, Image, ActivityIndicator, Modal, TouchableHighlight } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
 export const Login = () => {
@@ -33,6 +33,16 @@ export const Login = () => {
           }
         );
     }
+
+
+    const handleLogout = async () => {
+      try {
+          await CometChat.logout();
+          // navigation.navigate('Login');
+      } catch (error) {
+          console.error('Logout failed:', error);
+      }
+  };
     
 
     return (
@@ -43,6 +53,9 @@ export const Login = () => {
             /> 
             <Text style={styles.title}>Welcome Back!</Text>
             <Text style={styles.subtitle}>User</Text>
+            <TouchableHighlight onPress={handleLogout}>
+              <Text>LOGOUT</Text>
+            </TouchableHighlight>
             {loading ? (
                 <ActivityIndicator size="large" color="#6200ee" style={styles.loader} />
             ) : (
@@ -58,7 +71,8 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-start',
         alignItems: 'center',
         padding: 20,
-        backgroundColor: '#f0f0f0', // Light background color
+        backgroundColor: '#e5ddd5',
+        // backgroundColor: '#f0f0f0', // Light background color
     },
     logo: {
         width: 100,
