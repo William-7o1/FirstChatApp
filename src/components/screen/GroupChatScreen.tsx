@@ -14,6 +14,8 @@ const GroupChatScreen = ({ navigation, route }) => {
     const [members, setMembers] = useState([]);
     const currentUserID = AppConstants.UID;
     const inputRef = useRef(null);
+    const [isUserOnline, setIsUserOnline] = useState(null);
+    const [typingUsers, setTypingUsers] = useState(new Set());
 
     useEffect(() => {
         inputRef.current?.focus();
@@ -22,7 +24,57 @@ const GroupChatScreen = ({ navigation, route }) => {
             onTextMessageReceived: (message) => {
                 setMessages((prevMessages) => [...prevMessages, message]);
             },
+            onTypingStarted: (typing) => {
+                setTypingUsers((prev) => new Set(prev).add(typing.sender.uid));
+            },
+            onTypingEnded: (typing) => {
+                setTypingUsers((prev) => {
+                    const updated = new Set(prev);
+                    updated.delete(typing.sender.uid);
+                    return updated;
+                });
+            }
         });
+
+
+
+        // CometChat.addUserListener(listenerID, {
+        //     onUserOnline: (onlineUser) => {
+        //         if (onlineUser.uid === user.uid) {
+        //             setIsUserOnline(true);
+        //         }
+        //     },
+        //     onUserOffline: (offlineUser) => {
+        //         if (offlineUser.uid === user.uid) {
+        //             setIsUserOnline(false);
+        //         }
+        //     },
+        // });
+
+
+        CometChat.addUserListener(listenerID, {
+            onUserOnline: (onlineUser) => {
+                console.log("User is online:", onlineUser);
+                setUsers(prevUsers => 
+                    prevUsers.map(user => 
+                        user.uid === onlineUser.uid 
+                            ? { ...user, status: 'online' } 
+                            : user
+                    )
+                );
+            },
+            onUserOffline: (offlineUser) => {
+                console.log("User is offline:", offlineUser);
+                setUsers(prevUsers => 
+                    prevUsers.map(user => 
+                        user.uid === offlineUser.uid 
+                            ? { ...user, status: 'offline' } 
+                            : user
+                    )
+                );
+            },
+        });
+        
 
         const fetchPreviousMessages = async () => {
             let messagesRequest = new CometChat.MessagesRequestBuilder()
@@ -32,8 +84,19 @@ const GroupChatScreen = ({ navigation, route }) => {
 
             try {
                 const fetchedMessages = await messagesRequest.fetchPrevious();
-                const validMessages = fetchedMessages.filter(msg => msg.type !== 'deleted');
-                setMessages((prevMessages) => [...validMessages.reverse(), ...prevMessages]);
+                const messagesMap = new Map();
+
+                fetchedMessages.forEach(msg => {
+                    if (msg.actionOn) {
+                        console.log(`Message ID: ${msg.id} has been edited. New Message ID: ${msg.actionOn.id}`);
+                        messagesMap.set(msg.actionOn.id, { ...msg.actionOn, edited: true });
+                    } else if (msg.type !== 'deleted') {
+                        messagesMap.set(msg.id, { ...msg, edited: msg.edited || false });
+                    }
+                });
+                const validMessages = Array.from(messagesMap.values()).reverse();
+                setMessages((prevMessages) => [...validMessages, ...prevMessages]);
+
             } catch (error) {
                 console.error("Message fetching failed with error:", error);
             }
@@ -101,6 +164,23 @@ const GroupChatScreen = ({ navigation, route }) => {
             );
         }
     };
+    
+
+    const renderTypingIndicator = () => {
+        if (typingUsers.size > 0) {
+            const typingUsernames = Array.from(typingUsers).map(uid => {
+                const user = members.find(member => member.uid === uid);
+                return user ? user.name : uid; // Fallback to uid if name not found
+            }).join(', ');
+
+            return <Text style={styles.typingText}>{`${typingUsernames} is typing...`}</Text>;
+        }
+        return null;
+    };
+
+    // const handleTyping = () => {
+    //     CometChat.typingInGroup(group.guid);
+    // };
 
     const startEditingMessage = (message) => {
         setText(message.text);
@@ -130,7 +210,7 @@ const GroupChatScreen = ({ navigation, route }) => {
         const isDeleted = item.type === 'deleted' || item.text === undefined;
 
         return (
-            <TouchableOpacity onLongPress={() => isSentByCurrentUser && showMessageOptions(item)}>
+            <TouchableOpacity onLongPress={() => isSentByCurrentUser && !item.edited && !isDeleted && showMessageOptions(item)}>
                 <View style={[
                     styles.messageBubble,
                     isSentByCurrentUser ? styles.sentMessage : styles.receivedMessage,
@@ -152,9 +232,15 @@ const GroupChatScreen = ({ navigation, route }) => {
 
     const renderMember = ({ item }) => (
         <View style={styles.memberItem}>
-            <Image source={{ uri: item.avatar }} style={styles.memberAvatar} />
-            <Text style={styles.memberName}>{item.name}</Text>
-        </View>
+            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                <Image source={{ uri: item.avatar }} style={styles.memberAvatar} />
+                <Text style={styles.memberName}>{item.name}</Text>
+            </View>
+            <View>
+             <Icon name="circle" size={12} color = {isUserOnline ? 'green' : 'grey'} style={{ paddingLeft: 30}}/>
+            </View>
+         </View>
+            
     );
 
     return (
@@ -165,18 +251,24 @@ const GroupChatScreen = ({ navigation, route }) => {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <Text style={styles.backButtonText}>←</Text>
+                        {/* <Text style={styles.backButtonText}>←</Text> */}
+                        {Platform.OS === 'android' ? <Icon name="arrow-left" size={17} color="white" />  :  <Text style={styles.backButtonText}>←</Text>}
                     </TouchableOpacity>
-                    <View style={styles.headerContent}>
+                    <TouchableOpacity onPress={toggleModal} style={styles.headerContent}>
                         <Image source={{ uri: group.icon }} style={styles.avatar} />
                         <Text style={styles.headerText}>{group.name}</Text>
-                    </View>
-                    <TouchableOpacity onPress={toggleModal} style={styles.infoButton}>
+                    </TouchableOpacity>
+                    {/* <TouchableOpacity  style={styles.infoButton}> */}
                         {/* <Text style={styles.infoButtonText}>i</Text> */}
-                        <Icon name="exclamation" size={20} color="white" />
+                        {/* <Icon name="exclamation" size={20} color="white" /> */}
+                    {/* </TouchableOpacity> */}
+                    <TouchableOpacity style={styles.callButton}>
+                        <Icon name="phone" size={20} color="white" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.callButton}>
+                        <Icon name="video-camera" size={20} color="white" />
                     </TouchableOpacity>
                 </View>
-
                 <FlatList
                     data={messages}
                     keyExtractor={(item) => item.id}
@@ -185,6 +277,7 @@ const GroupChatScreen = ({ navigation, route }) => {
                     contentContainerStyle={styles.messageList}
                     inverted
                 />
+                {renderTypingIndicator()}
                 <View style={styles.inputContainer}>
                     <TextInput
                         ref={inputRef}

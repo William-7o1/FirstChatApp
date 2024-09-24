@@ -6,10 +6,9 @@ import { Login } from './src/components/login/Login';
 import UserList from './src/components/screen/UserList';
 import ChatScreen from './src/components/screen/ChatScreen';
 import GroupChatScreen from './src/components/screen/GroupChatScreen';
-// import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import CallingScreen from './src/components/screen/CallingScreen'
 
 const Stack = createNativeStackNavigator();
-// const Tab = createBottomTabNavigator();
 
 function App() {
   return (
@@ -20,6 +19,8 @@ function App() {
         <Stack.Screen name="GroupChatScreen" component={GroupChatScreen}  options={{ headerShown: false }}/>
         <Stack.Screen name="Chat" component={ChatScreen}  options={{ headerShown: false }}/>
         <Stack.Screen name="Home" component={Home}  options={{ headerShown: false }}  />
+        <Stack.Screen name="CallingScreen" component={CallingScreen}  options={{ headerShown: false }}  />
+        
       </Stack.Navigator>
     </NavigationContainer>
   );

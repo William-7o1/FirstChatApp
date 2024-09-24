@@ -153,6 +153,7 @@ export const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 5,
+        justifyContent: 'space-between'
     },
     memberAvatar: {
         width: 30,
@@ -196,5 +197,8 @@ export const styles = StyleSheet.create({
         color: '#fff',
         fontWeight: 'bold',
         textAlign: 'center', // Center text within the button
+    },
+    callButton:{
+        marginRight:12
     },
 });

@@ -17,8 +17,16 @@ export const styles = StyleSheet.create({
         paddingVertical: 10,
         paddingHorizontal: 15,
         borderRadius: 10,
+        justifyContent:'space-between'
+    },
+    messageStatus: {
+        fontSize: 12,
+        color: 'gray',
+        // textAlign: 'left',
+        marginLeft: 5,
     },
     backButton: {
+        alignSelf:'center',
         marginRight: 10,
     },
     backButtonText: {
@@ -105,9 +113,29 @@ export const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     infoButton: {
-        // backgroundColor: '#34C759', // Info button color
         borderRadius: 20,
-        // borderWidth:2,
         padding: 8,
+    },
+    tickMark: {
+        marginLeft: 5,
+    },
+    callButton:{
+        marginRight:12
+    },
+    receiptContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    receiptText: {
+        fontSize: 12,
+        color: '#888', // You can choose your own color
+        marginLeft: 5,
+    },
+    typingIndicator: {
+        padding: 10,
+        backgroundColor: '#f0f0f0',
+        borderRadius: 5,
+        marginVertical: 5,
+        alignSelf: 'flex-start',
     },
 });
