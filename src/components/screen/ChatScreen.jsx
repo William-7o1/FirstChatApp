@@ -21,42 +21,73 @@ const ChatScreen = ({ navigation, route }) => {
         CometChat.addMessageListener(listenerID, {
             onTextMessageReceived: (message) => {
                 setMessages((prevMessages) => [...prevMessages, message]);
-                // markMessageAsRead(message);
+                fetchPreviousMessages();
             },
-            onTypingStarted: (typing) => {
-                if (typing.sender.uid === user.uid) {
-                    setOtherUserTyping(true);
-                }
+            onTypingStarted: (typingIndicator) => {
+                setOtherUserTyping(true);
             },
-            onTypingEnded: (typing) => {
-                if (typing.sender.uid === user.uid) {
+            onTypingEnded: (typingIndicator) => {
                     setOtherUserTyping(false);
-                }
+            },
+            onMessageEdited: message => {
+                fetchPreviousMessages();
+            },
+            onMessageDeleted: (messageId) => {
+                fetchPreviousMessages();
             },
             onMessagesDelivered: (receipt) => {
-                console.log("Message delivered:", receipt.receiptType); // Check if this log appears
                 updateMessageStatus(receipt.messageId, 'delivered');
             },
             onMessagesRead: (receipt) => {
-                console.log("Message read:", receipt.receiptType); // Check if this log appears
-                updateMessageStatus(receipt.messageId, 'read');
-            }
-
-            // onMessagesDelivered: (messageReceipt) => {
-            //     console.log("Message is delivered to a user: ", { messageReceipt });
-            //   },
-            // onMessagesRead: (messageReceipt) => {
-            //     console.log("Message is read by a user: ", { messageReceipt });
-            //   }
-
+                updateAllDeliveredMessagesToRead(receipt.messageId);
+            },                   
         });
+
+        CometChat.addCallListener(
+            listenerID,
+            new CometChat.CallListener({
+              onIncomingCallReceived: (call) => {
+                console.log("Incoming call:", call);
+                // Store the session ID for use when accepting or rejecting the call
+                setSessionID(call.sessionId);
+                // Navigate to a separate screen or show an alert
+                Alert.alert("Incoming Call", `${call.sender.name} is calling`, [
+                    { text: "Reject", onPress: () => rejectIncomingCall(call.sessionId) },
+                    { text: "Accept", onPress: () => acceptIncomingCall(call.sessionId) }
+                ]);
+            },
+              onOutgoingCallAccepted: (call) => {
+                console.log("Outgoing call accepted:", call);
+                // Outgoing Call Accepted
+              },
+              onOutgoingCallRejected: (call) => {
+                console.log("Outgoing call rejected:", call);
+                // Outgoing Call Rejected
+              },
+              onIncomingCallCancelled: (call) => {
+                console.log("Incoming call calcelled:", call);
+              },
+              onCallEndedMessageReceived: (call) => {
+                console.log("CallEnded Message:", call);
+              },
+            })
+          );
 
         fetchPreviousMessages();
 
         return () => {
             CometChat.removeMessageListener(listenerID);
+            CometChat.removeCallListener(listenerID);
         };
     }, [user]);
+
+    const updateAllDeliveredMessagesToRead = (lastReadMessageId) => {
+        setMessages((prevMessages) =>
+            prevMessages.map((msg) =>
+                msg.status === 'delivered' || msg.id === lastReadMessageId ? { ...msg, status: 'read' } : msg
+            )
+        );
+    };
 
     const fetchPreviousMessages = async () => {
         let messagesRequest = new CometChat.MessagesRequestBuilder()
@@ -67,21 +98,14 @@ const ChatScreen = ({ navigation, route }) => {
         try {
             const fetchedMessages = await messagesRequest.fetchPrevious();
             const messagesMap = new Map();
-            fetchedMessages.forEach(msg => {
-                CometChat.markAsRead(msg).then(
-                    () => {
-                        // console.log("mark as read success." , msg.id);
-                        updateMessageStatus(msg.id, 'read');
-                    },
-                    (error) => {
-                        console.log("An error occurred when marking the message as read.", error);
-                    }
-                );
+    
+            fetchedMessages.forEach((msg) => {
                 if (msg.actionOn) {
                     messagesMap.set(msg.actionOn.id, { ...msg.actionOn, edited: true });
                 } else if (msg.type !== 'deleted') {
                     // Set delivery status based on the message status
-                    msg.status = msg.delivered ? 'delivered' : msg.status; // Add delivery status
+                    msg.status = msg.delivered ? 'delivered' : msg.status;
+                    msg.status = msg.readAt ? 'read' : msg.status; // Ensure read status
                     messagesMap.set(msg.id, { ...msg, edited: msg.edited || false });
                 }
             });
@@ -89,14 +113,26 @@ const ChatScreen = ({ navigation, route }) => {
             const validMessages = Array.from(messagesMap.values()).reverse();
             setMessages((prevMessages) => [...validMessages, ...prevMessages]);
     
+            // Mark the last message as read
+            const lastMessage = fetchedMessages[fetchedMessages.length - 1];
+            if (lastMessage) {
+                CometChat.markAsRead(lastMessage).then(
+                    () => {
+                        console.log("Mark as read success for message:", lastMessage.id);
+                    },
+                    (error) => {
+                        console.log("An error occurred when marking the message as unread:", error);
+                    }
+                );
+            }
         } catch (error) {
             console.error("Message fetching failed with error:", error);
         }
     };
-
-
+    
+    
+   
     const updateMessageStatus = (messageId, status) => {
-        // console.log(`Updating message with ID: ${messageId} to status: ${status}`);
         setMessages((prevMessages) =>
             prevMessages.map((msg) =>
                 msg.id === messageId ? { ...msg, status } : msg
@@ -107,9 +143,12 @@ const ChatScreen = ({ navigation, route }) => {
     const handleTextChange = (text) => {
         setText(text);
         if (text.trim() !== '') {
-            CometChat.startTyping(user.uid, CometChat.RECEIVER_TYPE.USER);
-        } else {
-            CometChat.endTyping(user.uid, CometChat.RECEIVER_TYPE.USER);
+            let typingNotification = new CometChat.TypingIndicator(user.uid, CometChat.RECEIVER_TYPE.USER);
+            CometChat.startTyping(typingNotification);
+        }
+         else {
+            let typingNotification = new CometChat.TypingIndicator(user.uid, CometChat.RECEIVER_TYPE.USER);
+            CometChat.endTyping(typingNotification);    
         }
     };
     
@@ -119,7 +158,8 @@ const ChatScreen = ({ navigation, route }) => {
 
     const sendMessage = () => {
         if (text.trim() === '') return;
-
+        let typingNotification = new CometChat.TypingIndicator(user.uid, CometChat.RECEIVER_TYPE.USER);
+        CometChat.endTyping(typingNotification);    
         if (editingMessageId) {
             let textMessage = new CometChat.TextMessage(user.uid, text, CometChat.RECEIVER_TYPE.USER);
             textMessage.setId(editingMessageId);
@@ -173,7 +213,9 @@ const ChatScreen = ({ navigation, route }) => {
     const showMessageOptions = (message) => {
         const options = [
             { text: 'Edit', onPress: () => startEditingMessage(message) },
-            { text: 'Delete', onPress: () => deleteMessage(message.id) },
+            { text: 'Delete', onPress: () => {deleteMessage(message.id)
+                fetchPreviousMessages();
+            } },
             { text: 'Cancel', style: 'cancel' }
         ];
 
@@ -182,18 +224,18 @@ const ChatScreen = ({ navigation, route }) => {
 
     const deleteMessage = (messageId) => {
         CometChat.deleteMessage(messageId).then(() => {
+            fetchPreviousMessages();
             setMessages((prevMessages) => prevMessages.filter(msg => msg.id !== messageId));
         }).catch(error => {
             console.error("Message deletion failed with error:", error);
         });
     };
 
-    const renderMessage = ({ item }) => {
+    const renderMessage = ({ item } ) => {
         const isSentByCurrentUser = item.sender.uid === currentUserID;
         const isDeleted = item.type === 'deleted' || item.text === undefined;
         
         const getMessageStatusIcon = () => {
-            // Show tick only for delivered messages sent by the current user
             if (isSentByCurrentUser && item.status === 'delivered') {
                 return "✓"; // Single tick for delivered
             } else if (isSentByCurrentUser && item.status === 'read') {
@@ -230,7 +272,6 @@ const ChatScreen = ({ navigation, route }) => {
         );
     };
 
-
     const initiateCallUser = async (callType) => {
         const receiverID = user.uid;
         const call = new CometChat.Call(receiverID, callType, CometChat.RECEIVER_TYPE.USER);
@@ -246,8 +287,21 @@ const ChatScreen = ({ navigation, route }) => {
             );
     }        
 
-    const rejectIncomingCall = () => {
-        var rejectStatus = CometChat.CALL_STATUS.REJECTED;
+    const acceptIncomingCall = (sessionID) => {
+        CometChat.acceptCall(sessionID).then(
+            (call) => {
+                console.log("Call accepted successfully:", call);
+                navigation.navigate('CallingScreen', { sessionID, user });
+            },
+            (error) => {
+                console.log("Call acceptance failed with error", error);
+                // Handle the error appropriately
+            }
+        );
+    };
+
+    const rejectIncomingCall = (sessionID) => {
+        const rejectStatus = CometChat.CALL_STATUS.REJECTED;
         CometChat.rejectCall(sessionID, rejectStatus).then(
             (call) => {
                 console.log("Call rejected successfully", call);
@@ -258,7 +312,17 @@ const ChatScreen = ({ navigation, route }) => {
         );
     };
 
-        
+    // const cancelOutgoingCall = () => {
+    //     var rejectStatus = CometChat.CALL_STATUS.CANCELLED;
+    //     CometChat.rejectCall(sessionID, rejectStatus).then(
+    //         (call) => {
+    //             console.log("Call rejected successfully", call);
+    //         },
+    //         (error) => {
+    //             console.log("Call rejection failed with error:", error);
+    //         }
+    //     );
+    // };  
      
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -276,7 +340,7 @@ const ChatScreen = ({ navigation, route }) => {
                             otherUserTyping 
                             // true
                             && 
-                            <Text style={{ marginLeft: 10, fontSize: 12, marginTop: 3, color: 'white' }}>
+                            <Text style={{ marginLeft: 10, fontSize: 14, marginTop: 3, color: 'white' }}>
                                 Typing...
                             </Text>
                         }
@@ -319,5 +383,3 @@ const ChatScreen = ({ navigation, route }) => {
 };
 
 export default ChatScreen;
-
-
