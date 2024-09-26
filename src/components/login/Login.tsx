@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { CometChat } from "@cometchat/chat-sdk-react-native";
-import { AppConstants } from "../../../AppConstants";
+import { AppConstants } from "../../../AppConstants"; // Ensure this points to your constants file
 import {
     Text,
     View,
@@ -14,9 +14,9 @@ import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { styles } from '../styles/LoginStyle';
 
 export const Login = () => {
-    const UID = AppConstants.UID;
     const navigation = useNavigation();
     const [loading, setLoading] = useState(false);
+    const [uid, setUid] = useState(''); // Start with an empty UID
     const [newUser, setNewUser] = useState('');
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -27,7 +27,13 @@ export const Login = () => {
             setLoading(true);
             CometChat.getLoggedinUser()
                 .then(user => {
-                    setIsLoggedIn(!!user); // Set login state based on user existence
+                    if (user) {
+                        setIsLoggedIn(true);
+                        setUid(user.getUid()); // Set UID from logged-in user
+                        AppConstants.UID = user.getUid(); // Update AppConstants with logged-in UID
+                    } else {
+                        setIsLoggedIn(false);
+                    }
                     setLoading(false);
                 })
                 .catch(error => {
@@ -38,17 +44,17 @@ export const Login = () => {
     );
 
     const loginFunc = () => {
+        if (!uid.trim()) {
+            alert("Please enter a UID to login.");
+            return;
+        }
+
         setLoading(true);
-        CometChat.getLoggedinUser()
+        CometChat.login(uid, AppConstants.AUTH_KEY)
             .then(user => {
-                if (!user) {
-                    return CometChat.login(UID, AppConstants.AUTH_KEY)
-                        .then(user => {
-                            console.log("Login Successful:", { user });
-                            setIsLoggedIn(true);
-                            navigation.navigate('Home');
-                        });
-                }
+                // console.log("Login Successful:", { user });
+                setIsLoggedIn(true);
+                AppConstants.UID = uid; // Update AppConstants with the new UID
                 navigation.navigate('Home');
             })
             .catch(error => {
@@ -62,6 +68,7 @@ export const Login = () => {
             await CometChat.logout();
             console.log("Logout successful");
             setIsLoggedIn(false);
+            AppConstants.UID = ''; // Clear the UID on logout
         } catch (error) {
             console.error('Logout failed:', error);
         }
@@ -83,6 +90,7 @@ export const Login = () => {
             .then(user => {
                 console.log("Login Successful after user creation:", user);
                 setIsLoggedIn(true);
+                AppConstants.UID = user.getUid(); // Update AppConstants with the new UID
                 navigation.navigate('Home');
             })
             .catch(error => {
@@ -104,6 +112,12 @@ export const Login = () => {
                 <>
                     {!isLoggedIn ? (
                         <>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Enter User ID"
+                                value={uid}
+                                onChangeText={setUid} // Update UID state
+                            />
                             <TouchableOpacity style={styles.loginButton} onPress={loginFunc}>
                                 <Text style={styles.loginButtonText}>Login</Text>
                             </TouchableOpacity>

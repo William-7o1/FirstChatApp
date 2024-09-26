@@ -1,11 +1,24 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, TextInput, TouchableOpacity, FlatList, Text, KeyboardAvoidingView, Platform, Image, SafeAreaView, Alert } from 'react-native';
 import { CometChat } from '@cometchat/chat-sdk-react-native';
 import { AppConstants } from '../../../AppConstants';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { styles } from '../styles/ChatScreenStyle';
+import { useFocusEffect } from '@react-navigation/native';
 
-const ChatScreen = ({ navigation, route }) => {
+interface ChatScreenProps {
+    navigation: any;
+    route: {
+      params: {
+        user: {
+          uid: string;
+          name: string;
+        };
+      };
+    };
+  }
+
+  const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     const { user } = route.params;
     const [messages, setMessages] = useState([]);
     const [text, setText] = useState('');
@@ -13,6 +26,17 @@ const ChatScreen = ({ navigation, route }) => {
     const [otherUserTyping, setOtherUserTyping] = useState(false);
     const currentUserID = AppConstants.UID;
     const inputRef = useRef(null);
+    const typingTimeoutRef = useRef(null);
+
+    useFocusEffect(
+        useCallback(() => {
+            return () => {
+                let typingNotification = new CometChat.TypingIndicator(user.uid, CometChat.RECEIVER_TYPE.USER);
+                CometChat.endTyping(typingNotification);
+            };
+        }, [])
+    );
+
 
     useEffect(() => {
         inputRef.current?.focus();
@@ -23,22 +47,22 @@ const ChatScreen = ({ navigation, route }) => {
                 setMessages((prevMessages) => [...prevMessages, message]);
                 fetchPreviousMessages();
             },
-            onTypingStarted: (typingIndicator) => {
+            onTypingStarted: () => {
                 setOtherUserTyping(true);
             },
-            onTypingEnded: (typingIndicator) => {
+            onTypingEnded: () => {
                     setOtherUserTyping(false);
             },
-            onMessageEdited: message => {
+            onMessageEdited: () => {
                 fetchPreviousMessages();
             },
-            onMessageDeleted: (messageId) => {
+            onMessageDeleted: () => {
                 fetchPreviousMessages();
             },
-            onMessagesDelivered: (receipt) => {
+            onMessagesDelivered: (receipt:any) => {
                 updateMessageStatus(receipt.messageId, 'delivered');
             },
-            onMessagesRead: (receipt) => {
+            onMessagesRead: (receipt:any) => {
                 updateAllDeliveredMessagesToRead(receipt.messageId);
             },                   
         });
@@ -46,7 +70,7 @@ const ChatScreen = ({ navigation, route }) => {
         CometChat.addCallListener(
             listenerID,
             new CometChat.CallListener({
-              onIncomingCallReceived: (call) => {
+              onIncomingCallReceived: (call:any) => {
                 console.log("Incoming call:", call);
                 // Store the session ID for use when accepting or rejecting the call
                 setSessionID(call.sessionId);
@@ -56,18 +80,18 @@ const ChatScreen = ({ navigation, route }) => {
                     { text: "Accept", onPress: () => acceptIncomingCall(call.sessionId) }
                 ]);
             },
-              onOutgoingCallAccepted: (call) => {
+              onOutgoingCallAccepted: (call:CometChat.Call) => {
                 console.log("Outgoing call accepted:", call);
                 // Outgoing Call Accepted
               },
-              onOutgoingCallRejected: (call) => {
+              onOutgoingCallRejected: (call:CometChat.Call) => {
                 console.log("Outgoing call rejected:", call);
                 // Outgoing Call Rejected
               },
-              onIncomingCallCancelled: (call) => {
+              onIncomingCallCancelled: (call:CometChat.Call) => {
                 console.log("Incoming call calcelled:", call);
               },
-              onCallEndedMessageReceived: (call) => {
+              onCallEndedMessageReceived: (call:CometChat.Call) => {
                 console.log("CallEnded Message:", call);
               },
             })
@@ -81,7 +105,7 @@ const ChatScreen = ({ navigation, route }) => {
         };
     }, [user]);
 
-    const updateAllDeliveredMessagesToRead = (lastReadMessageId) => {
+    const updateAllDeliveredMessagesToRead = (lastReadMessageId:any) => {
         setMessages((prevMessages) =>
             prevMessages.map((msg) =>
                 msg.status === 'delivered' || msg.id === lastReadMessageId ? { ...msg, status: 'read' } : msg
@@ -99,7 +123,7 @@ const ChatScreen = ({ navigation, route }) => {
             const fetchedMessages = await messagesRequest.fetchPrevious();
             const messagesMap = new Map();
     
-            fetchedMessages.forEach((msg) => {
+            fetchedMessages.forEach((msg:CometChat.BaseMessage) => {
                 if (msg.actionOn) {
                     messagesMap.set(msg.actionOn.id, { ...msg.actionOn, edited: true });
                 } else if (msg.type !== 'deleted') {
@@ -142,13 +166,23 @@ const ChatScreen = ({ navigation, route }) => {
 
     const handleTextChange = (text) => {
         setText(text);
+
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current); // Clear previous timeout
+        }
+
         if (text.trim() !== '') {
             let typingNotification = new CometChat.TypingIndicator(user.uid, CometChat.RECEIVER_TYPE.USER);
             CometChat.startTyping(typingNotification);
-        }
-         else {
+
+            // Stop typing indicator after 3 seconds of inactivity
+            typingTimeoutRef.current = setTimeout(() => {
+                let typingNotification = new CometChat.TypingIndicator(user.uid, CometChat.RECEIVER_TYPE.USER);
+                CometChat.endTyping(typingNotification);
+            }, 3000); // 3 seconds delay
+        } else {
             let typingNotification = new CometChat.TypingIndicator(user.uid, CometChat.RECEIVER_TYPE.USER);
-            CometChat.endTyping(typingNotification);    
+            CometChat.endTyping(typingNotification);
         }
     };
     
@@ -190,7 +224,7 @@ const ChatScreen = ({ navigation, route }) => {
                             updateMessageStatus(sentMessage.id, 'delivered');
                           console.log("mark as delivered success.");
                         },
-                        (error) => {
+                        (error: any) => {
                           console.log(
                             "An error occurred when marking the message as delivered.",
                             error

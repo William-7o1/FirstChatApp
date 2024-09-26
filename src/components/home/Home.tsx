@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, Modal, FlatList, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useNavigation } from '@react-navigation/native';
-import { CometChat } from '@cometchat/chat-sdk-react-native';;
+import { useNavigation, NavigationProp } from '@react-navigation/native';
+import { CometChat } from '@cometchat/chat-sdk-react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { styles } from '../styles/HomeStyle';
 
 const Tab = createBottomTabNavigator();
 
-const Home = () => {
+const Home: React.FC = () => {
     return (
         <Tab.Navigator
             screenOptions={{
@@ -36,16 +36,21 @@ const Home = () => {
     );
 };
 
-const FriendsScreen = () => {
-    const navigation = useNavigation();
-    const [users, setUsers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [isUserOnline, setIsUserOnline] = useState(false);
+interface UserItem {
+    uid: string;
+    name: string;
+    avatar: string;
+    status: 'online' | 'offline' | string;
+}
+
+const FriendsScreen: React.FC = () => {
+    const navigation = useNavigation<NavigationProp<any>>();
+    const [users, setUsers] = useState<UserItem[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
 
     useEffect(() => {
-        const listenerID = `listener_${users?.uid}`;
-        // const listenerID = 'USER_PRESENCE_LISTENER';
-        
+        const listenerID = 'USER_PRESENCE_LISTENER';
+
         const fetchUsers = async () => {
             setLoading(true);
             try {
@@ -59,52 +64,35 @@ const FriendsScreen = () => {
             }
         };
 
-        // CometChat.addUserListener(listenerID, {
-        //     onUserOnline: (onlineUser) => {
-        //         {
-        //             console.log("User is online:", onlineUser);
-        //             setIsUserOnline(true);
-        //         }
-        //     },
-        //     onUserOffline: (offlineUser) => {
-        //         console.log("User is offline:", offlineUser)
-        //             setIsUserOnline(false);
-        //         }
-        //     },
-        // );
-
         CometChat.addUserListener(listenerID, {
             onUserOnline: (onlineUser) => {
-                console.log("User is online:", onlineUser);
-                setUsers(prevUsers => 
-                    prevUsers.map(user => 
-                        user.uid === onlineUser.uid 
-                            ? { ...user, status: 'online' } 
+                setUsers(prevUsers =>
+                    prevUsers.map(user =>
+                        user.uid === onlineUser.uid
+                            ? { ...user, status: 'online' }
                             : user
                     )
                 );
             },
-            onUserOffline: (offlineUser) => {
-                console.log("User is offline:", offlineUser);
-                setUsers(prevUsers => 
-                    prevUsers.map(user => 
-                        user.uid === offlineUser.uid 
-                            ? { ...user, status: 'offline' } 
+            onUserOffline: (offlineUser: { uid: string; }) => {
+                setUsers(prevUsers =>
+                    prevUsers.map(user =>
+                        user.uid === offlineUser.uid
+                            ? { ...user, status: 'offline' }
                             : user
                     )
                 );
             },
         });
 
-
         fetchUsers();
 
         return () => {
             CometChat.removeUserListener(listenerID);
-        }
+        };
     }, []);
 
-    const navigateToChat = (user) => navigation.navigate('Chat', { user });
+    const navigateToChat = (user: UserItem) => navigation.navigate('Chat', { user });
 
     const handleLogout = async () => {
         try {
@@ -115,12 +103,12 @@ const FriendsScreen = () => {
             console.error('Logout failed:', error);
         }
     };
-        
+
     return (
         <View style={styles.container}>
             <View style={styles.header}>
                 <Image source={require('../../asset/logo.png')} style={styles.logo} />
-                <Text style={{fontSize:20, fontWeight:600}}>First Friends </Text>
+                <Text style={{fontSize: 20, fontWeight: '600'}}>First Friends</Text>
                 <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                     <Text style={styles.logoutText}>Logout</Text>
                 </TouchableOpacity>
@@ -133,13 +121,12 @@ const FriendsScreen = () => {
                     keyExtractor={(item) => item.uid}
                     renderItem={({ item }) => (
                         <TouchableOpacity style={styles.userItem} onPress={() => navigateToChat(item)}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent:'space-between' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center'}}>
                                     <Image source={{ uri: item.avatar }} style={styles.avatar} />
                                     <Text style={styles.userName}>{item.name}</Text>
                                 </View>
-                                
-                                <Icon name="circle" size={12} color = {isUserOnline ? 'green' : 'grey'} style={{ paddingLeft: 30}}/>
+                                <Icon name="circle" size={12} color={item.status === 'online' ? 'green' : 'grey'} style={{ paddingLeft: 30 }}/>
                             </View>
                         </TouchableOpacity>
                     )}
@@ -149,14 +136,20 @@ const FriendsScreen = () => {
     );
 };
 
-const GroupsScreen = () => {
-    const navigation = useNavigation();
-    const [groups, setGroups] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [isGroupModalVisible, setGroupModalVisible] = useState(false);
-    const [groupName, setGroupName] = useState('');
-    const [selectedFriends, setSelectedFriends] = useState([]);
-    const [users, setUsers] = useState([]);
+interface GroupItem {
+    guid: string;
+    name: string;
+    icon: string;
+}
+
+const GroupsScreen: React.FC = () => {
+    const navigation = useNavigation<NavigationProp<any>>();
+    const [groups, setGroups] = useState<GroupItem[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
+    const [isGroupModalVisible, setGroupModalVisible] = useState<boolean>(false);
+    const [groupName, setGroupName] = useState<string>('');
+    const [selectedFriends, setSelectedFriends] = useState<UserItem[]>([]);
+    const [users, setUsers] = useState<UserItem[]>([]);
 
     useEffect(() => {
         const fetchGroups = async () => {
@@ -171,6 +164,7 @@ const GroupsScreen = () => {
                 setLoading(false);
             }
         };
+
         const fetchUsers = async () => {
             try {
                 const userList = await new CometChat.UsersRequestBuilder().setLimit(30).build().fetchNext();
@@ -179,11 +173,12 @@ const GroupsScreen = () => {
                 console.error('Fetching users failed:', error);
             }
         };
+
         fetchGroups();
         fetchUsers();
     }, []);
 
-    const navigateToGroupChat = (group) => navigation.navigate('GroupChatScreen', { group });
+    const navigateToGroupChat = (group: GroupItem) => navigation.navigate('GroupChatScreen', { group });
 
     const createGroup = async () => {
         if (!groupName.trim() || !selectedFriends.length) {
@@ -199,7 +194,7 @@ const GroupsScreen = () => {
             const groupMembers = selectedFriends.map(friend => new CometChat.GroupMember(friend.uid, CometChat.GROUP_MEMBER_SCOPE.PARTICIPANT));
             await CometChat.addMembersToGroup(createdGroup.guid, groupMembers, []);
 
-            setGroups([...groups, { name: groupName, guid: createdGroup.guid }]);
+            setGroups([...groups, { name: groupName, guid: createdGroup.guid, icon: '' }]);
             resetGroupModal();
             Alert.alert('Success', 'Group created successfully!');
         } catch (error) {
@@ -228,7 +223,7 @@ const GroupsScreen = () => {
         <View style={styles.container}>
             <View style={styles.header}>
                 <Image source={require('../../asset/logo.png')} style={styles.logo} />
-                <Text style={{fontSize:20, fontWeight:600}}>First Group </Text>
+                <Text style={{fontSize: 20, fontWeight: '600'}}>First Group</Text>
                 <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                     <Text style={styles.logoutText}>Logout</Text>
                 </TouchableOpacity>
@@ -291,16 +286,15 @@ const GroupsScreen = () => {
                                 </View>
                             </TouchableOpacity>
                             )}
-                            />
+                        />
                         <View style={{flexDirection:'row'}}>
-                        <TouchableOpacity style={styles.createGroupButton} onPress={createGroup}>
-                            <Text style={styles.createGroupButtonText}>Create Group</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.closeButton} onPress={resetGroupModal}>
-                            <Text style={styles.closeButtonText}>Close</Text>
-                        </TouchableOpacity>
+                            <TouchableOpacity style={styles.createGroupButton} onPress={createGroup}>
+                                <Text style={styles.createGroupButtonText}>Create Group</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.closeButton} onPress={resetGroupModal}>
+                                <Text style={styles.closeButtonText}>Close</Text>
+                            </TouchableOpacity>
                         </View>
-                        
                     </View>
                 </View>
             </Modal>

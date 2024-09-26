@@ -5,7 +5,16 @@ import { AppConstants } from '../../../AppConstants';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { styles } from '../styles/GroupChatScreenStyle';
 
-const GroupChatScreen = ({ navigation, route }) => {
+interface ChatScreenProps {
+    navigation: any;
+    route: {
+      params: {
+        group: any
+      };
+    };
+  }
+  
+const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     const { group } = route.params;
     const [messages, setMessages] = useState([]);
     const [text, setText] = useState('');
@@ -14,7 +23,6 @@ const GroupChatScreen = ({ navigation, route }) => {
     const [members, setMembers] = useState([]);
     const currentUserID = AppConstants.UID;
     const inputRef = useRef(null);
-    const [isUserOnline, setIsUserOnline] = useState(null);
     const [typingUsers, setTypingUsers] = useState(new Set());
 
     useEffect(() => {
@@ -23,34 +31,37 @@ const GroupChatScreen = ({ navigation, route }) => {
         CometChat.addMessageListener(listenerID, {
             onTextMessageReceived: (message) => {
                 setMessages((prevMessages) => [...prevMessages, message]);
+                fetchPreviousMessages();
             },
             onTypingStarted: (typing) => {
-                setTypingUsers((prev) => new Set(prev).add(typing.sender.uid));
+                setTypingUsers((prev) => {
+                    const updated = new Set(prev);
+                    updated.add(typing.sender.uid); 
+                    return updated;
+                });
             },
             onTypingEnded: (typing) => {
                 setTypingUsers((prev) => {
                     const updated = new Set(prev);
-                    updated.delete(typing.sender.uid);
+                    updated.delete(typing.sender.uid); 
                     return updated;
                 });
-            }
+            },
+            onMessageEdited: () => {
+                fetchPreviousMessages();
+            },
+            onMessageDeleted: () => {
+                fetchPreviousMessages();
+            },
+            onMessagesDeliveredToAll: (receipt) => {
+                console.log("Message delivered to all:", receipt.receiptType);
+                updateMessageStatus(receipt.messageId, 'delivered');
+            },
+            onMessagesReadByAll: (receipt) => {
+                console.log("Message read by all:", receipt.receiptType);
+                updateMessageStatus(receipt.messageId, 'read');
+            },
         });
-
-
-
-        // CometChat.addUserListener(listenerID, {
-        //     onUserOnline: (onlineUser) => {
-        //         if (onlineUser.uid === user.uid) {
-        //             setIsUserOnline(true);
-        //         }
-        //     },
-        //     onUserOffline: (offlineUser) => {
-        //         if (offlineUser.uid === user.uid) {
-        //             setIsUserOnline(false);
-        //         }
-        //     },
-        // });
-
 
         CometChat.addUserListener(listenerID, {
             onUserOnline: (onlineUser) => {
@@ -75,39 +86,66 @@ const GroupChatScreen = ({ navigation, route }) => {
             },
         });
         
-
-        const fetchPreviousMessages = async () => {
-            let messagesRequest = new CometChat.MessagesRequestBuilder()
-                .setGUID(group.guid)
-                .setLimit(30)
-                .build();
-
-            try {
-                const fetchedMessages = await messagesRequest.fetchPrevious();
-                const messagesMap = new Map();
-
-                fetchedMessages.forEach(msg => {
-                    if (msg.actionOn) {
-                        console.log(`Message ID: ${msg.id} has been edited. New Message ID: ${msg.actionOn.id}`);
-                        messagesMap.set(msg.actionOn.id, { ...msg.actionOn, edited: true });
-                    } else if (msg.type !== 'deleted') {
-                        messagesMap.set(msg.id, { ...msg, edited: msg.edited || false });
-                    }
-                });
-                const validMessages = Array.from(messagesMap.values()).reverse();
-                setMessages((prevMessages) => [...validMessages, ...prevMessages]);
-
-            } catch (error) {
-                console.error("Message fetching failed with error:", error);
-            }
-        };
-
         fetchPreviousMessages();
 
         return () => {
             CometChat.removeMessageListener(listenerID);
+            CometChat.removeUserListener(listenerID);
         };
     }, [group]);
+
+    const fetchPreviousMessages = async () => {
+        const messagesRequest = new CometChat.MessagesRequestBuilder()
+            .setGUID(group.guid)
+            .setLimit(30)
+            .build();
+    
+        try {
+            const fetchedMessages = await messagesRequest.fetchPrevious();
+            const messagesMap = new Map();
+    
+            fetchedMessages.forEach((msg) => {
+                // Handle edited messages
+                if (msg.actionOn) {
+                    messagesMap.set(msg.actionOn.id, { ...msg.actionOn, edited: true });
+                } else if (msg.type !== 'deleted') {
+                    // Set appropriate status (delivered/read) for the message
+                    msg.status = msg.delivered ? 'delivered' : msg.status;
+                    msg.status = msg.readAt ? 'read' : msg.status;
+                    messagesMap.set(msg.id, { ...msg, edited: msg.edited || false });
+                }
+            });
+    
+            // Reverse the messages for display order and update the state
+            const validMessages = Array.from(messagesMap.values()).reverse();
+            setMessages((prevMessages) => [...validMessages, ...prevMessages]);
+    
+            // Mark the last fetched message as read
+            const lastMessage = fetchedMessages[fetchedMessages.length - 1];
+            if (lastMessage) {
+                CometChat.markAsRead(lastMessage).then(
+                    () => {
+                        console.log("Mark as read success for message:", lastMessage.id);
+                    },
+                    (error) => {
+                        console.error("An error occurred when marking the message as read:", error);
+                    }
+                );
+            }
+    
+        } catch (error) {
+            console.error("Message fetching failed with error:", error);
+        }
+    };
+    
+    const updateMessageStatus = (messageId, status) => {
+        // console.log(`Updating message with ID: ${messageId} to status: ${status}`);
+        setMessages((prevMessages) =>
+            prevMessages.map((msg) =>
+                msg.id === messageId ? { ...msg, status } : msg
+            )
+        );
+    };
 
     const fetchGroupMembers = async () => {
         const membersRequest = new CometChat.GroupMembersRequestBuilder(group.guid)
@@ -129,8 +167,26 @@ const GroupChatScreen = ({ navigation, route }) => {
         setModalVisible(!isModalVisible);
     };
 
+
+    const handleTextChange = (text) => {
+        setText(text);
+    
+        if (!group || !CometChat) return; // Ensure that group and CometChat are available
+    
+        const typingNotification = new CometChat.TypingIndicator(group.guid, CometChat.RECEIVER_TYPE.GROUP);
+    
+        if (text.trim()) {
+            CometChat.startTyping(typingNotification);
+        } else {
+            CometChat.endTyping(typingNotification);
+        }
+    };
+
+
     const sendMessage = () => {
         if (text.trim() === '') return;
+        let typingNotification = new CometChat.TypingIndicator(group.guid, CometChat.RECEIVER_TYPE.GROUP);
+            CometChat.endTyping(typingNotification);
 
         if (editingMessageId) {
             let textMessage = new CometChat.TextMessage(group.guid, text, CometChat.RECEIVER_TYPE.GROUP);
@@ -157,6 +213,18 @@ const GroupChatScreen = ({ navigation, route }) => {
                 (sentMessage) => {
                     setMessages((prevMessages) => [sentMessage, ...prevMessages]);
                     setText('');
+                    CometChat.markAsDelivered(sentMessage).then(
+                        () => {
+                            updateMessageStatus(sentMessage.id, 'delivered');
+                          console.log("mark as delivered success.");
+                        },
+                        (error) => {
+                          console.log(
+                            "An error occurred when marking the message as delivered.",
+                            error
+                          );
+                        }
+                      );
                 },
                 (error) => {
                     console.error('Message sending failed with error:', error);
@@ -166,22 +234,6 @@ const GroupChatScreen = ({ navigation, route }) => {
     };
     
 
-    const renderTypingIndicator = () => {
-        if (typingUsers.size > 0) {
-            const typingUsernames = Array.from(typingUsers).map(uid => {
-                const user = members.find(member => member.uid === uid);
-                return user ? user.name : uid; // Fallback to uid if name not found
-            }).join(', ');
-
-            return <Text style={styles.typingText}>{`${typingUsernames} is typing...`}</Text>;
-        }
-        return null;
-    };
-
-    // const handleTyping = () => {
-    //     CometChat.typingInGroup(group.guid);
-    // };
-
     const startEditingMessage = (message) => {
         setText(message.text);
         setEditingMessageId(message.id);
@@ -190,7 +242,10 @@ const GroupChatScreen = ({ navigation, route }) => {
     const showMessageOptions = (message) => {
         const options = [
             { text: 'Edit', onPress: () => startEditingMessage(message) },
-            { text: 'Delete', onPress: () => deleteMessage(message.id) },
+            { text: 'Delete', onPress: () => {
+                deleteMessage(message.id)
+                fetchPreviousMessages();
+            } },
             { text: 'Cancel', style: 'cancel' }
         ];
 
@@ -209,6 +264,17 @@ const GroupChatScreen = ({ navigation, route }) => {
         const isSentByCurrentUser = item.sender.uid === currentUserID;
         const isDeleted = item.type === 'deleted' || item.text === undefined;
 
+        const getMessageStatusIcon = () => {
+            // Show tick only for delivered messages sent by the current user
+            if (isSentByCurrentUser && item.status === 'delivered') {
+                return "✓"; // Single tick for delivered
+            } else if (isSentByCurrentUser && item.status === 'read') {
+                return "✓✓"; // Double tick for read
+            } else {
+                return "✓"; // No tick for other messages
+            }
+        };
+
         return (
             <TouchableOpacity onLongPress={() => isSentByCurrentUser && !item.edited && !isDeleted && showMessageOptions(item)}>
                 <View style={[
@@ -223,6 +289,9 @@ const GroupChatScreen = ({ navigation, route }) => {
                             <Text style={styles.messageText}>{item.text || 'No message'}</Text>
                             {item.edited && <Text style={styles.editedText}>(edited)</Text>}
                             <Text style={styles.senderName}>{item.sender.name}</Text>
+                            {isSentByCurrentUser && 
+                                <Text style={styles.messageStatus}>{getMessageStatusIcon()}</Text> 
+                                }
                         </>
                     )}
                 </View>
@@ -237,7 +306,8 @@ const GroupChatScreen = ({ navigation, route }) => {
                 <Text style={styles.memberName}>{item.name}</Text>
             </View>
             <View>
-             <Icon name="circle" size={12} color = {isUserOnline ? 'green' : 'grey'} style={{ paddingLeft: 30}}/>
+                {/* {console.log(user.status)} */}
+             <Icon name="circle" size={12} color = {item.status === 'online' ? 'green' : 'grey'} style={{ paddingLeft: 30}}/>
             </View>
          </View>
             
@@ -257,11 +327,12 @@ const GroupChatScreen = ({ navigation, route }) => {
                     <TouchableOpacity onPress={toggleModal} style={styles.headerContent}>
                         <Image source={{ uri: group.icon }} style={styles.avatar} />
                         <Text style={styles.headerText}>{group.name}</Text>
+                        {
+                        typingUsers.size > 0
+                         &&
+                        <Text style={{fontSize:12, marginLeft:8, color:'white', marginTop:2}}>typing...</Text>
+                        }
                     </TouchableOpacity>
-                    {/* <TouchableOpacity  style={styles.infoButton}> */}
-                        {/* <Text style={styles.infoButtonText}>i</Text> */}
-                        {/* <Icon name="exclamation" size={20} color="white" /> */}
-                    {/* </TouchableOpacity> */}
                     <TouchableOpacity style={styles.callButton}>
                         <Icon name="phone" size={20} color="white" />
                     </TouchableOpacity>
@@ -271,18 +342,25 @@ const GroupChatScreen = ({ navigation, route }) => {
                 </View>
                 <FlatList
                     data={messages}
-                    keyExtractor={(item) => item.id}
+                    // keyExtractor={(item) => item.id}
+                    keyExtractor={(item, index) => `${item.id}-${index}`}
                     renderItem={renderMessage}
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.messageList}
                     inverted
+                    ListEmptyComponent={() => (
+                        <View style={styles.emptyMessageContainer}>
+                            <Text style={styles.emptyMessageText}>No messages yet. Start the conversation!</Text>
+                        </View>
+                    )}
                 />
-                {renderTypingIndicator()}
+                
                 <View style={styles.inputContainer}>
                     <TextInput
                         ref={inputRef}
                         value={text}
-                        onChangeText={setText}
+                        onChangeText={handleTextChange}
+                        // onChangeText={setText}
                         placeholder="Type a message"
                         style={styles.input}
                         onSubmitEditing={sendMessage}

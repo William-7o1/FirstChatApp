@@ -26,6 +26,12 @@ export const styles = StyleSheet.create({
     backButton: {
         marginRight: 10,
     },
+    messageStatus: {
+        fontSize: 12,
+        color: 'gray',
+        // textAlign: 'left',
+        marginLeft: 5,
+    },
     backButtonText: {
         fontSize: 24,
         color: '#fff',
@@ -200,5 +206,16 @@ export const styles = StyleSheet.create({
     },
     callButton:{
         marginRight:12
+    },
+    emptyMessageContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 20,
+    },
+    emptyMessageText: {
+        color: 'gray',
+        fontSize: 16,
+        fontStyle: 'italic',
     },
 });
