@@ -27,6 +27,9 @@ interface ChatScreenProps {
     const currentUserID = AppConstants.UID;
     const inputRef = useRef(null);
     const typingTimeoutRef = useRef(null);
+    const [sessionID, setSessionID] = useState<string | null>(null);
+    const [incomingCallVisible, setIncomingCallVisible] = useState(false);
+
 
     useFocusEffect(
         useCallback(() => {
@@ -37,6 +40,19 @@ interface ChatScreenProps {
         }, [])
     );
 
+    const createlogedInUserAuthToken = async () => {
+        try {
+            let loggedInUser = await CometChat.getLoggedinUser();
+            let authToken = loggedInUser?.getAuthToken();
+            return authToken;
+        } catch (error) {
+            console.error("Error fetching auth token: ", error);
+            return null;
+        }
+    };
+
+    // console.log(createlogedInUserAuthToken(),"authTokenauthTokenauthTokenauthToken");
+    // const token = createlogedInUserAuthToken();
 
     useEffect(() => {
         inputRef.current?.focus();
@@ -70,30 +86,42 @@ interface ChatScreenProps {
         CometChat.addCallListener(
             listenerID,
             new CometChat.CallListener({
-              onIncomingCallReceived: (call:any) => {
+            onIncomingCallReceived: (call) => {
                 console.log("Incoming call:", call);
-                // Store the session ID for use when accepting or rejecting the call
                 setSessionID(call.sessionId);
-                // Navigate to a separate screen or show an alert
-                Alert.alert("Incoming Call", `${call.sender.name} is calling`, [
-                    { text: "Reject", onPress: () => rejectIncomingCall(call.sessionId) },
-                    { text: "Accept", onPress: () => acceptIncomingCall(call.sessionId) }
-                ]);
+                setIncomingCallVisible(true); 
+                Alert.alert(
+                    "Incoming Call",
+                    `${call.sender.name} is calling`,
+                    [
+                        { text: "Reject", onPress: () => rejectIncomingCall(call.sessionId) },
+                        { text: "Accept", onPress: () => acceptIncomingCall(call.sessionId) }
+                    ]
+                );
             },
-              onOutgoingCallAccepted: (call:CometChat.Call) => {
+            onOutgoingCallAccepted: (call) => {
+                setIncomingCallVisible(false);
                 console.log("Outgoing call accepted:", call);
-                // Outgoing Call Accepted
-              },
-              onOutgoingCallRejected: (call:CometChat.Call) => {
+                startCallSession(call);
+                // navigation.navigate('CallingScreen', { sessionID: call.sessionId, user });
+            },
+            onOutgoingCallRejected: (call) => {
                 console.log("Outgoing call rejected:", call);
-                // Outgoing Call Rejected
-              },
-              onIncomingCallCancelled: (call:CometChat.Call) => {
-                console.log("Incoming call calcelled:", call);
-              },
-              onCallEndedMessageReceived: (call:CometChat.Call) => {
+                // End the calling screen if the call is rejected
+                Alert.alert("Call Rejected", `${call.sender.name} rejected the call.`);
+                navigation.goBack();  // Navigate back to the chat screen
+            },
+            onIncomingCallCancelled: (call) => {
+                console.log("Incoming call cancelled:", call);
+                setIncomingCallVisible(false);
+                // Dismiss the alert when the call is cancelled
+                Alert.alert("Call Cancelled", "The caller has cancelled the call.");
+            },
+            onCallEndedMessageReceived: (call) => {
                 console.log("CallEnded Message:", call);
-              },
+                // End the calling screen if the call has ended
+                navigation.goBack();  // Navigate back to the chat screen
+            },
             })
           );
 
@@ -123,10 +151,13 @@ interface ChatScreenProps {
             const fetchedMessages = await messagesRequest.fetchPrevious();
             const messagesMap = new Map();
     
-            fetchedMessages.forEach((msg:CometChat.BaseMessage) => {
+            fetchedMessages.forEach((msg: CometChat.BaseMessage) => {
                 if (msg.actionOn) {
                     messagesMap.set(msg.actionOn.id, { ...msg.actionOn, edited: true });
-                } else if (msg.type !== 'deleted') {
+                } else if (msg.type === 'audio') {
+                    // Log audio message and don't push it
+                    console.log("Audio message:", msg);
+                } else if (msg.type === 'text' && msg.type !== 'deleted') {
                     // Set delivery status based on the message status
                     msg.status = msg.delivered ? 'delivered' : msg.status;
                     msg.status = msg.readAt ? 'read' : msg.status; // Ensure read status
@@ -153,7 +184,6 @@ interface ChatScreenProps {
             console.error("Message fetching failed with error:", error);
         }
     };
-    
     
    
     const updateMessageStatus = (messageId, status) => {
@@ -313,55 +343,51 @@ interface ChatScreenProps {
         CometChat.initiateCall(call).then(
             (outGoingCall) => {
                 console.log("Call initiated successfully:", outGoingCall);
-                navigation.navigate('CallingScreen', { sessionID: call.getSessionId , user});
+                navigation.navigate('CallingScreen', { sessionID: outGoingCall.sessionId, user, });
             },
             (error) => {
-                console.log("Call initialization failed with exception:", error);
+                console.log("Call initiation failed with exception:", error);
             }
-            );
-    }        
+        );
+    };
 
     const acceptIncomingCall = (sessionID) => {
+        setIncomingCallVisible(false);
+        // startCallSession(call);
         CometChat.acceptCall(sessionID).then(
-            (call) => {
-                console.log("Call accepted successfully:", call);
-                navigation.navigate('CallingScreen', { sessionID, user });
-            },
-            (error) => {
-                console.log("Call acceptance failed with error", error);
-                // Handle the error appropriately
-            }
+          (call) => {
+            console.log("Call accepted successfully:", call);
+            navigation.navigate('CallingScreen', { sessionID, user });
+          },
+          (error) => {
+            console.log("Call acceptance failed with error", error);
+          }
         );
-    };
+      };
 
-    const rejectIncomingCall = (sessionID) => {
+      const rejectIncomingCall = (sessionID) => {
+        setIncomingCallVisible(false);
         const rejectStatus = CometChat.CALL_STATUS.REJECTED;
         CometChat.rejectCall(sessionID, rejectStatus).then(
-            (call) => {
-                console.log("Call rejected successfully", call);
-            },
-            (error) => {
-                console.log("Call rejection failed with error:", error);
-            }
+          (call) => {
+            console.log("Call rejected successfully", call);
+          },
+          (error) => {
+            console.log("Call rejection failed with error:", error);
+          }
         );
-    };
+      };
 
-    // const cancelOutgoingCall = () => {
-    //     var rejectStatus = CometChat.CALL_STATUS.CANCELLED;
-    //     CometChat.rejectCall(sessionID, rejectStatus).then(
-    //         (call) => {
-    //             console.log("Call rejected successfully", call);
-    //         },
-    //         (error) => {
-    //             console.log("Call rejection failed with error:", error);
-    //         }
-    //     );
-    // };  
-     
+      const startCallSession = (call) => {
+        // Navigate to the calling screen and start the call session
+        navigation.navigate('CallingScreen', { sessionID: call.sessionId, user });
+    };
+    
     return (
         <SafeAreaView style={styles.safeArea}>
             <KeyboardAvoidingView
                 style={styles.container}
+                keyboardVerticalOffset={Platform.OS === 'android' ? 40 : 0}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>

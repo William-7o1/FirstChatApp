@@ -8,7 +8,8 @@ import {
     ActivityIndicator,
     Modal,
     TextInput,
-    TouchableOpacity
+    TouchableOpacity,
+    Alert
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { styles } from '../styles/LoginStyle';
@@ -31,6 +32,7 @@ export const Login = () => {
                         setIsLoggedIn(true);
                         setUid(user.getUid()); // Set UID from logged-in user
                         AppConstants.UID = user.getUid(); // Update AppConstants with logged-in UID
+                        // console.log(user.getAuthToken()) 
                     } else {
                         setIsLoggedIn(false);
                     }
@@ -45,7 +47,7 @@ export const Login = () => {
 
     const loginFunc = () => {
         if (!uid.trim()) {
-            alert("Please enter a UID to login.");
+            Alert.alert("Please enter a UID to login.");
             return;
         }
 

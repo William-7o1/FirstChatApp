@@ -65,7 +65,7 @@ const FriendsScreen: React.FC = () => {
         };
 
         CometChat.addUserListener(listenerID, {
-            onUserOnline: (onlineUser) => {
+            onUserOnline: (onlineUser: { uid: string; }) => {
                 setUsers(prevUsers =>
                     prevUsers.map(user =>
                         user.uid === onlineUser.uid
@@ -84,6 +84,7 @@ const FriendsScreen: React.FC = () => {
                 );
             },
         });
+        
 
         fetchUsers();
 
