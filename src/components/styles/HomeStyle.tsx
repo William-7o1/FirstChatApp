@@ -112,4 +112,52 @@ export const styles = StyleSheet.create({
     closeButtonText: {
         fontWeight: 'bold',
     },
+    conversationContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+      },
+      userInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+      },
+      lastMessage: {
+        color: '#888',
+        fontSize: 14,
+        marginTop: 2,
+      },
+      statusContainer: {
+        alignItems: 'flex-end',
+      },
+      unreadCountContainer: {
+        backgroundColor: '#6200ee',
+        borderRadius: 12,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 5,
+        // marginRight: 50, 
+      },
+      unreadCountText: {
+        color: '#fff',
+        fontSize: 12,
+      },
+      avatarContainer: {
+        position: 'relative',
+      },
+      statusIndicator: {
+        position: 'absolute',
+        bottom: 0,
+        right: 40,
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        borderWidth: 2,
+        borderColor: '#fff',
+      },
+      textContainer: {
+        flex: 1,
+      },
+      
 });
