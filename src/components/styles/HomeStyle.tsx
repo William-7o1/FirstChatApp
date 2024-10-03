@@ -159,5 +159,65 @@ export const styles = StyleSheet.create({
       textContainer: {
         flex: 1,
       },
+      modalOverlay: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      },
+      modalContainer: {
+        width: '80%',
+        backgroundColor: '#fff',
+        borderRadius: 10,
+        padding: 20,
+        alignItems: 'center',
+      },
+      callerAvatar: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        marginBottom: 20,
+      },
+      callerAvatarPlaceholder: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: '#ccc',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 20,
+      },
+      callerInitial: {
+        fontSize: 30,
+        color: '#fff',
+      },
+      callerName: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 20,
+      },
+      modalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '100%',
+      },
+      modalButton: {
+        flex: 1,
+        padding: 10,
+        borderRadius: 5,
+        alignItems: 'center',
+        marginHorizontal: 5,
+      },
+      rejectButton: {
+        backgroundColor: '#e74c3c',
+      },
+      acceptButton: {
+        backgroundColor: '#2ecc71',
+      },
+      buttonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+      },
       
 });

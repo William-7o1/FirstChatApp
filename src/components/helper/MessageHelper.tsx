@@ -71,8 +71,7 @@ export const createMessageHelper = ({
         onMessagesRead: (receipt: CometChat.MessageReceipt) => {
           console.log('onMessagesRead:', receipt);
           updateMessagesReceipt(receipt);
-          // fetchPreviousMessages();
-        },
+          },
         onMessageDelivered: (receipt: CometChat.MessageReceipt) => {
           console.log('onMessageDelivered:', receipt);
           updateMessageReceipt(receipt);

@@ -45,4 +45,11 @@ export const styles = StyleSheet.create({
     loadingIndicator: {
         marginTop: 20,
     },
+    callComponentContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        height: '100%',
+        width: '100%',
+    },
 });

@@ -82,6 +82,11 @@ const FriendsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp<any>>();
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [sessionID, setSessionID] = useState<string | null>(null);
+  const [incomingCallVisible, setIncomingCallVisible] = useState(false);
+  const [messageStatuses, setMessageStatuses] = useState([]);
+  const [caller, setCaller] = useState<{ name: string; avatar?: string } | null>(null);
+
 
   useFocusEffect(
     React.useCallback(() => {
@@ -181,10 +186,55 @@ const FriendsScreen: React.FC = () => {
       })
     );
 
+    CometChat.addCallListener(
+      listenerID,
+      new CometChat.CallListener({
+        // onIncomingCallReceived: (call) => {
+        //   console.log('Incoming call:', call);
+        //   setSessionID(call.getSessionId());
+        //   setIncomingCallVisible(true);
+        //   Alert.alert('Incoming Call', `${call.getSender().getName()} is calling`, [
+        //     { text: 'Reject', onPress: () => rejectIncomingCall(call.getSessionId()) },
+        //     { text: 'Accept', onPress: () => acceptIncomingCall(call.getSessionId()) },
+        //   ]);
+        // },
+        onIncomingCallReceived: (call) => {
+          console.log('Incoming call:', call);
+          setSessionID(call.getSessionId());
+          setCaller({
+            name: call.getSender().getName(),
+            avatar: call.getSender().getAvatar(),
+          });
+          setIncomingCallVisible(true);
+        },
+        onOutgoingCallAccepted: (call) => {
+          setIncomingCallVisible(false);
+          console.log('Outgoing call accepted:', call);
+          startCallSession(call);
+        },
+        onOutgoingCallRejected: (call) => {
+          console.log('Outgoing call rejected:', call);
+          Alert.alert('Call Rejected', `${call.getSender().getName()} rejected the call.`);
+          // navigation.goBack();
+        },
+        onIncomingCallCancelled: (call) => {
+          console.log('Incoming call cancelled:', call);
+          setIncomingCallVisible(false);
+          Alert.alert('Call Cancelled', 'The caller has cancelled the call.');
+        },
+        onCallEndedMessageReceived: (call) => {
+          console.log('CallEnded Message:', call);
+          // navigation.goBack();
+        },
+      })
+    );
+
+
     // Cleanup listeners on unmount
     return () => {
       CometChat.removeUserListener(listenerID);
       CometChat.removeMessageListener(messageListenerID);
+      CometChat.removeCallListener(listenerID);
     };
   }, []);
 
@@ -288,6 +338,38 @@ const FriendsScreen: React.FC = () => {
     }
   };
 
+  const acceptIncomingCall = (sessionID: string) => {
+    setIncomingCallVisible(false);
+    setCaller(null);
+    CometChat.acceptCall(sessionID).then(
+      (call) => {
+        console.log('Call accepted successfully:', call);
+        navigation.navigate('CallingScreen', { sessionID });
+      },
+      (error) => {
+        console.log('Call acceptance failed with error', error);
+      }
+    );
+  };
+  
+  const rejectIncomingCall = (sessionID: string) => {
+    setIncomingCallVisible(false);
+    setCaller(null);
+    const rejectStatus = CometChat.CALL_STATUS.REJECTED;
+    CometChat.rejectCall(sessionID, rejectStatus).then(
+      (call) => {
+        console.log('Call rejected successfully');
+      },
+      (error) => {
+        console.log('Call rejection failed with error:', error);
+      }
+    );
+  };
+  
+  const startCallSession = (call: CometChat.Call) => {
+    navigation.navigate('CallingScreen', { sessionID: call.getSessionId() });
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -347,6 +429,42 @@ const FriendsScreen: React.FC = () => {
           )}
         />
       )}
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={incomingCallVisible}
+        onRequestClose={() => {
+          // Optional: Handle the back button press if needed
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {caller?.avatar ? (
+              <Image source={{ uri: caller.avatar }} style={styles.callerAvatar} />
+            ) : (
+              <View style={styles.callerAvatarPlaceholder}>
+                <Text style={styles.callerInitial}>{caller?.name.charAt(0)}</Text>
+              </View>
+            )}
+            <Text style={styles.callerName}>{caller?.name}</Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.rejectButton]}
+                onPress={() => rejectIncomingCall(sessionID!)}
+              >
+                <Text style={styles.buttonText}>Reject</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.acceptButton]}
+                onPress={() => acceptIncomingCall(sessionID!)}
+              >
+                <Text style={styles.buttonText}>Accept</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
