@@ -16,6 +16,8 @@ import { CometChat } from '@cometchat/chat-sdk-react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { styles } from '../styles/HomeStyle';
 import { useFocusEffect } from '@react-navigation/native';
+import { useCall } from '../../../CallContext'; // Adjust path
+
 
 const Tab = createBottomTabNavigator();
 
@@ -82,11 +84,10 @@ const FriendsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp<any>>();
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [sessionID, setSessionID] = useState<string | null>(null);
-  const [incomingCallVisible, setIncomingCallVisible] = useState(false);
   const [messageStatuses, setMessageStatuses] = useState([]);
-  const [caller, setCaller] = useState<{ name: string; avatar?: string } | null>(null);
-
+  const [users, setUsers] = useState<UserItem[]>([]);
+  const [isUserModalVisible, setIsUserModalVisible] = useState<boolean>(false);
+  const { setIncomingCallVisible, setCaller, setSessionID, incomingCallVisible, caller, sessionID } = useCall();
 
   useFocusEffect(
     React.useCallback(() => {
@@ -136,6 +137,9 @@ const FriendsScreen: React.FC = () => {
       messageListenerID,
       new CometChat.MessageListener({
         onTextMessageReceived: (message: CometChat.TextMessage) => {
+          if (message.getReceiverType() !== 'user') {
+            return;
+          }
           setConversations(prevConversations => {
             const index = prevConversations.findIndex(
               conversation =>
@@ -168,15 +172,6 @@ const FriendsScreen: React.FC = () => {
             }
           });
         },
-      })
-    );
-
-    CometChat.addMessageListener(
-      messageListenerID,
-      new CometChat.MessageListener({
-        onTextMessageReceived: (message: CometChat.TextMessage) => {
-          handleIncomingMessage(message);
-        },
         onMessagesRead: (messageReceipt: CometChat.MessageReceipt) => {
           handleReadReceipt(messageReceipt);
         },
@@ -186,18 +181,10 @@ const FriendsScreen: React.FC = () => {
       })
     );
 
+    // Call listener
     CometChat.addCallListener(
       listenerID,
       new CometChat.CallListener({
-        // onIncomingCallReceived: (call) => {
-        //   console.log('Incoming call:', call);
-        //   setSessionID(call.getSessionId());
-        //   setIncomingCallVisible(true);
-        //   Alert.alert('Incoming Call', `${call.getSender().getName()} is calling`, [
-        //     { text: 'Reject', onPress: () => rejectIncomingCall(call.getSessionId()) },
-        //     { text: 'Accept', onPress: () => acceptIncomingCall(call.getSessionId()) },
-        //   ]);
-        // },
         onIncomingCallReceived: (call) => {
           console.log('Incoming call:', call);
           setSessionID(call.getSessionId());
@@ -215,7 +202,6 @@ const FriendsScreen: React.FC = () => {
         onOutgoingCallRejected: (call) => {
           console.log('Outgoing call rejected:', call);
           Alert.alert('Call Rejected', `${call.getSender().getName()} rejected the call.`);
-          // navigation.goBack();
         },
         onIncomingCallCancelled: (call) => {
           console.log('Incoming call cancelled:', call);
@@ -224,11 +210,9 @@ const FriendsScreen: React.FC = () => {
         },
         onCallEndedMessageReceived: (call) => {
           console.log('CallEnded Message:', call);
-          // navigation.goBack();
         },
       })
     );
-
 
     // Cleanup listeners on unmount
     return () => {
@@ -277,6 +261,28 @@ const FriendsScreen: React.FC = () => {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const limit = 50;
+      const usersRequest = new CometChat.UsersRequestBuilder()
+        .setLimit(limit)
+        .build();
+      const userList = await usersRequest.fetchNext();
+
+      const usersData: UserItem[] = userList.map((user: CometChat.User) => ({
+        uid: user.getUid(),
+        name: user.getName(),
+        avatar: user.getAvatar() || '',
+        status: user.getStatus(),
+      }));
+
+      setUsers(usersData);
+    } catch (error) {
+      console.error('Fetching users failed:', error);
+      Alert.alert('Error', 'Failed to fetch users.');
+    }
+  };
+
   const navigateToChat = (user: UserItem) => navigation.navigate('Chat', { user });
 
   const handleLogout = async () => {
@@ -289,44 +295,11 @@ const FriendsScreen: React.FC = () => {
     }
   };
 
-  const handleIncomingMessage = (message: CometChat.BaseMessage) => {
-    setConversations(prevConversations => {
-      const index = prevConversations.findIndex(
-        conversation => conversation.conversationWith.uid === message.getSender().getUid()
-      );
-      if (index > -1) {
-        // Conversation exists, update last message and unread count
-        const updatedConversations = [...prevConversations];
-        const updatedConversation = { ...updatedConversations[index] };
-        updatedConversation.lastMessage = message;
-        updatedConversation.unreadMessageCount += 1;
-        // Move conversation to top
-        updatedConversations.splice(index, 1);
-        return [updatedConversation, ...updatedConversations];
-      } else {
-        // New conversation, add to list
-        const newConversation: ConversationItem = {
-          conversationId: message.getSender().getUid(),
-          conversationType: 'user',
-          conversationWith: {
-            uid: message.getSender().getUid(),
-            name: message.getSender().getName(),
-            avatar: message.getSender().getAvatar() || '',
-            status: message.getSender().getStatus(),
-          },
-          lastMessage: message,
-          unreadMessageCount: 1,
-        };
-        return [newConversation, ...prevConversations];
-      }
-    });
-  };
-
   const handleReadReceipt = (messageReceipt: CometChat.MessageReceipt) => {
     const { sender, receiverId } = messageReceipt;
     const currentUserID = CometChat.getLoggedinUser().getUid();
 
-    // We need to check if the current user is the receiver of the read receipt
+    // Check if the current user is the receiver of the read receipt
     if (messageReceipt.getReceiverType() === 'user' && receiverId === currentUserID) {
       setConversations(prevConversations =>
         prevConversations.map(conversation =>
@@ -370,17 +343,34 @@ const FriendsScreen: React.FC = () => {
     navigation.navigate('CallingScreen', { sessionID: call.getSessionId() });
   };
 
+  const navigateToSelectContact = async () => {
+    await fetchUsers();
+    setIsUserModalVisible(true);
+  };
+
+  const handleUserSelect = (user: UserItem) => {
+    setIsUserModalVisible(false);
+    navigation.navigate('Chat', { user });
+  };
+
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <Image source={require('../../asset/logo.png')} style={styles.logo} />
-        <Text style={{ fontSize: 20, fontWeight: '600' }}>First Friends</Text>
+        <Text style={styles.headerTitle}>First Friends</Text>
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Conversations List or Empty State */}
       {loading ? (
-        <ActivityIndicator size="large" color="#6200ee" />
+        <ActivityIndicator size="large" color="#6200ee" style={styles.loader} />
+      ) : conversations.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No conversations yet. Start chatting!</Text>
+        </View>
       ) : (
         <FlatList
           data={conversations}
@@ -391,52 +381,61 @@ const FriendsScreen: React.FC = () => {
               onPress={() => navigateToChat(item.conversationWith)}
             >
               <View style={styles.conversationContainer}>
-              <View style={styles.userInfo}>
-                <View style={styles.avatarContainer}>
+                <View style={styles.userInfo}>
+                  <View style={styles.avatarContainer}>
+                  {item.conversationWith.avatar ?
                   <Image
-                    source={{ uri: item.conversationWith.avatar }}
-                    style={styles.avatar}
-                  />
-                  <View
-                    style={[
-                      styles.statusIndicator,
-                      {
-                        backgroundColor:
-                          item.conversationWith.status === 'online' ? '#34C759' : '#8E8E93',
-                      },
-                    ]}
-                  />
-                </View>
-                <View style={styles.textContainer}>
-                  <Text style={styles.userName}>{item.conversationWith.name}</Text>
-                  <Text style={styles.lastMessage} numberOfLines={1}>
-                    {item.lastMessage ? item.lastMessage.getText() : ''}
-                  </Text>
-                </View>
-                <View style={styles.statusContainer}>
-                {item.unreadMessageCount > 0 && (
-                  <View style={styles.unreadCountContainer}>
-                    <Text style={styles.unreadCountText}>
-                      {item.unreadMessageCount > 99 ? '99+' : item.unreadMessageCount}
+                  source={{ uri: item.conversationWith.avatar }}
+                  style={styles.avatar}
+                />
+              :<Image
+              source={require('../../asset/logo.png')}
+              style={styles.avatar}
+            />}
+                    
+                    <View
+                      style={[
+                        styles.statusIndicator,
+                        {
+                          backgroundColor:
+                            item.conversationWith.status === 'online' ? '#34C759' : '#8E8E93',
+                        },
+                      ]}
+                    />
+                  </View>
+                  <View style={styles.textContainer}>
+                    <Text style={styles.userName}>{item.conversationWith.name}</Text>
+                    <Text style={styles.lastMessage} numberOfLines={1}>
+                      {item.lastMessage ? item.lastMessage.getText() : ''}
                     </Text>
                   </View>
-                )}
-              </View>
-              </View>
-              
+                  <View style={styles.statusContainer}>
+                    {item.unreadMessageCount > 0 && (
+                      <View style={styles.unreadCountContainer}>
+                        <Text style={styles.unreadCountText}>
+                          {item.unreadMessageCount > 99 ? '99+' : item.unreadMessageCount}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
               </View>
             </TouchableOpacity>
           )}
         />
       )}
 
+      {/* Floating Action Button */}
+      <TouchableOpacity style={styles.fab} onPress={navigateToSelectContact}>
+        <Text style={styles.fabIcon}>+</Text>
+      </TouchableOpacity>
+
+      {/* Incoming Call Modal */}
       <Modal
         animationType="slide"
         transparent={true}
         visible={incomingCallVisible}
-        onRequestClose={() => {
-          // Optional: Handle the back button press if needed
-        }}
+        onRequestClose={() => {}}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
@@ -465,6 +464,46 @@ const FriendsScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
+
+      {/* User Selection Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isUserModalVisible}
+        onRequestClose={() => setIsUserModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.userModalContainer}>
+            <Text style={styles.modalTitle}>Select a User</Text>
+            {users.length === 0 ? (
+              <ActivityIndicator size="large" color="#6200ee" style={styles.loader} />
+            ) : (
+              <FlatList
+                data={users}
+                keyExtractor={item => item.uid}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.userItemModal}
+                    onPress={() => handleUserSelect(item)}
+                  >
+                    <Image source={{ uri: item.avatar }} style={styles.userAvatar} />
+                    <View style={styles.userInfoModal}>
+                      <Text style={styles.userNameModal}>{item.name}</Text>
+                      <Text style={styles.userStatusModal}>{item.status}</Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setIsUserModalVisible(false)}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -477,30 +516,100 @@ interface GroupItem {
 
 const GroupsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList, 'Groups'>>();
-  const [groups, setGroups] = useState<GroupItem[]>([]);
+  const [groups, setGroups] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isGroupModalVisible, setGroupModalVisible] = useState<boolean>(false);
   const [groupName, setGroupName] = useState<string>('');
   const [selectedFriends, setSelectedFriends] = useState<UserItem[]>([]);
   const [users, setUsers] = useState<UserItem[]>([]);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchGroups();
+    }, [])
+  );
+
+  useEffect(() => {
+    fetchUsers();
+
+    const listenerID = 'GROUP_LISTENER';
+
+    // Add group listener
+    CometChat.addGroupListener(
+      listenerID,
+      new CometChat.GroupListener({
+        onMemberAddedToGroup: (
+          action: CometChat.Action,
+          addedBy: CometChat.User,
+          addedUser: CometChat.User,
+          addedToGroup: CometChat.Group
+        ) => {
+          console.log('User added to group:', {
+            action,
+            addedBy,
+            addedUser,
+            addedToGroup,
+          });
+          fetchGroups();
+        },
+      })
+    );
+
+    // Add message listener
+    CometChat.addMessageListener(
+      listenerID,
+      new CometChat.MessageListener({
+        onTextMessageReceived: (message: CometChat.TextMessage) => {
+          handleIncomingMessage(message);
+        },
+        onMediaMessageReceived: (message: CometChat.MediaMessage) => {
+          handleIncomingMessage(message);
+        },
+        onCustomMessageReceived: (message: CometChat.CustomMessage) => {
+          handleIncomingMessage(message);
+        },
+        onMessagesRead: (messageReceipt: CometChat.MessageReceipt) => {
+          handleReadReceipt(messageReceipt);
+        },
+      })
+    );
+
+    return () => {
+      CometChat.removeGroupListener(listenerID);
+      CometChat.removeMessageListener(listenerID);
+    };
+  }, []);
+
   const fetchGroups = async () => {
     setLoading(true);
     try {
-      const groupsRequest = new CometChat.GroupsRequestBuilder()
+      const conversationsRequest = new CometChat.ConversationsRequestBuilder()
         .setLimit(30)
-        .joinedOnly(true)
+        .setConversationType(CometChat.RECEIVER_TYPE.GROUP)
         .build();
-      const groupsList = await groupsRequest.fetchNext();
-      const groupsData: GroupItem[] = groupsList.map(group => ({
-        guid: group.getGuid(),
-        name: group.getName(),
-        icon: group.getIcon() || '',
-      }));
+
+      const conversationList = await conversationsRequest.fetchNext();
+
+      const groupsData: ConversationItem[] = conversationList.map((conversation: any) => {
+        const group = conversation.getConversationWith();
+        const lastMessage = conversation.getLastMessage();
+        return {
+          conversationId: conversation.getConversationId(),
+          conversationType: 'group',
+          conversationWith: {
+            guid: group.getGuid(),
+            name: group.getName(),
+            icon: group.getIcon() || '',
+          },
+          lastMessage,
+          unreadMessageCount: conversation.getUnreadMessageCount(),
+        };
+      });
+
       setGroups(groupsData);
     } catch (error) {
-      console.error('Fetching failed:', error);
-      Alert.alert('Error', 'Failed to fetch data.');
+      console.error('Fetching group conversations failed:', error);
+      Alert.alert('Error', 'Failed to fetch group conversations.');
     } finally {
       setLoading(false);
     }
@@ -510,7 +619,7 @@ const GroupsScreen: React.FC = () => {
     try {
       const usersRequest = new CometChat.UsersRequestBuilder().setLimit(30).build();
       const userList = await usersRequest.fetchNext();
-      const usersData: UserItem[] = userList.map(user => ({
+      const usersData: UserItem[] = userList.map((user) => ({
         uid: user.getUid(),
         name: user.getName(),
         avatar: user.getAvatar() || '',
@@ -522,38 +631,74 @@ const GroupsScreen: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchGroups();
-    fetchUsers();
+  const handleIncomingMessage = (message: CometChat.BaseMessage) => {
+    if (message.getReceiverType() === CometChat.RECEIVER_TYPE.GROUP) {
+      const groupID = message.getReceiverId();
 
-    const listenerID = 'GROUP_LISTENER';
+      setGroups((prevGroups) => {
+        const index = prevGroups.findIndex(
+          (conversation) => conversation.conversationWith.guid === groupID
+        );
 
-    CometChat.addGroupListener(
-      listenerID,
-      new CometChat.GroupListener({
-        onMemberAddedToGroup: (
-          action: CometChat.Action,
-          addedBy: CometChat.User,
-          addedUser: CometChat.User,
-          addedToGroup: CometChat.Group,
-        ) => {
-          console.log('User added to group:', {
-            action,
-            addedBy,
-            addedUser,
-            addedToGroup,
-          });
-          fetchGroups();
-        },
-      }),
+        if (index > -1) {
+          // Update existing conversation
+          const updatedGroups = [...prevGroups];
+          const updatedConversation = { ...updatedGroups[index] };
+
+          updatedConversation.lastMessage = message;
+          updatedConversation.unreadMessageCount += 1;
+
+          // Move to top
+          updatedGroups.splice(index, 1);
+          return [updatedConversation, ...updatedGroups];
+        } else {
+          // New conversation
+          const newConversation: ConversationItem = {
+            conversationId: groupID,
+            conversationType: 'group',
+            conversationWith: {
+              guid: groupID,
+              name: message.getReceiverId(), // Optionally fetch group details
+              icon: '',
+            },
+            lastMessage: message,
+            unreadMessageCount: 1,
+          };
+          return [newConversation, ...prevGroups];
+        }
+      });
+    }
+  };
+
+  const handleReadReceipt = (messageReceipt: CometChat.MessageReceipt) => {
+    if (messageReceipt.getReceiverType() === CometChat.RECEIVER_TYPE.GROUP) {
+      const groupID = messageReceipt.getReceiverId();
+
+      setGroups((prevGroups) =>
+        prevGroups.map((conversation) =>
+          conversation.conversationWith.guid === groupID
+            ? { ...conversation, unreadMessageCount: 0 }
+            : conversation
+        )
+      );
+    }
+  };
+
+  const navigateToGroupChat = (group: GroupItem) => {
+    // Mark messages as read
+    // CometChat.markAsRead(group.guid, CometChat.RECEIVER_TYPE.GROUP);
+
+    // Reset unread count in state
+    setGroups((prevGroups) =>
+      prevGroups.map((conversation) =>
+        conversation.conversationWith.guid === group.guid
+          ? { ...conversation, unreadMessageCount: 0 }
+          : conversation
+      )
     );
 
-    return () => {
-      CometChat.removeGroupListener(listenerID);
-    };
-  }, []);
-
-  const navigateToGroupChat = (group: GroupItem) => navigation.navigate('GroupChatScreen', { group });
+    navigation.navigate('GroupChatScreen', { group });
+  };
 
   const createGroup = async () => {
     if (!groupName.trim() || !selectedFriends.length) {
@@ -567,19 +712,26 @@ const GroupsScreen: React.FC = () => {
       const createdGroup = await CometChat.createGroup(group);
 
       const groupMembers = selectedFriends.map(
-        friend =>
-          new CometChat.GroupMember(friend.uid, CometChat.GROUP_MEMBER_SCOPE.PARTICIPANT),
+        (friend) => new CometChat.GroupMember(friend.uid, CometChat.GROUP_MEMBER_SCOPE.PARTICIPANT)
       );
       await CometChat.addMembersToGroup(createdGroup.getGuid(), groupMembers, []);
 
-      setGroups([
-        ...groups,
+      // Manually add the new group to the conversations list
+      setGroups((prevGroups) => [
         {
-          guid: createdGroup.getGuid(),
-          name: createdGroup.getName(),
-          icon: createdGroup.getIcon() || '',
+          conversationId: createdGroup.getGuid(),
+          conversationType: 'group',
+          conversationWith: {
+            guid: createdGroup.getGuid(),
+            name: createdGroup.getName(),
+            icon: createdGroup.getIcon() || '',
+          },
+          lastMessage: null, // No last message yet
+          unreadMessageCount: 0,
         },
+        ...prevGroups,
       ]);
+
       resetGroupModal();
       Alert.alert('Success', 'Group created successfully!');
     } catch (error) {
@@ -604,31 +756,92 @@ const GroupsScreen: React.FC = () => {
     }
   };
 
+  // Helper function to get the message text
+  const getMessageText = (message: CometChat.BaseMessage): string => {
+    if (!message) {
+      return '';
+    }
+
+    switch (message.getType()) {
+      case CometChat.MESSAGE_TYPE.TEXT:
+        return (message as CometChat.TextMessage).getText();
+      case CometChat.MESSAGE_TYPE.IMAGE:
+        return '[Image]';
+      case CometChat.MESSAGE_TYPE.VIDEO:
+        return '[Video]';
+      case CometChat.MESSAGE_TYPE.AUDIO:
+        return '[Audio]';
+      case CometChat.MESSAGE_TYPE.FILE:
+        return '[File]';
+      default:
+        if (message instanceof CometChat.Action) {
+          return message.message; // For action messages
+        } else if (message instanceof CometChat.Call) {
+          return '[Call]';
+        } else {
+          return '[Unsupported message]';
+        }
+    }
+  };
+
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <Image source={require('../../asset/logo.png')} style={styles.logo} />
-        <Text style={{ fontSize: 20, fontWeight: '600' }}>First Group</Text>
+        <Text style={{ fontSize: 20, fontWeight: '600' }}>Group Conversations</Text>
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Loading Indicator */}
       {loading ? (
         <ActivityIndicator size="large" color="#6200ee" />
       ) : (
         <>
+          {/* Group Conversations List */}
           <FlatList
             data={groups}
-            keyExtractor={item => item.guid}
+            keyExtractor={(item) => item.conversationId}
             renderItem={({ item }) => (
-              <TouchableOpacity style={styles.groupItem} onPress={() => navigateToGroupChat(item)}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  {item.icon ? <Image source={{ uri: item.icon }} style={styles.avatar} /> : null}
-                  <Text style={styles.groupName}>{item.name}</Text>
+              <TouchableOpacity
+                style={styles.groupItem}
+                onPress={() => navigateToGroupChat(item.conversationWith)}
+              >
+                <View style={styles.conversationContainer}>
+                  <View style={styles.avatarContainer}>
+                    {item.conversationWith.icon ? (
+                      <Image
+                        source={{ uri: item.conversationWith.icon }}
+                        style={styles.avatar}
+                      />
+                    ) : (
+                      <View style={styles.avatarPlaceholder}>
+                        <Text style={styles.avatarInitial}>
+                          {item.conversationWith.name.charAt(0)}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.textContainer}>
+                    <Text style={styles.groupName}>{item.conversationWith.name}</Text>
+                    <Text style={styles.lastMessage} numberOfLines={1}>
+                      {item.lastMessage ? getMessageText(item.lastMessage) : 'No messages yet'}
+                    </Text>
+                  </View>
+                  {item.unreadMessageCount > 0 && (
+                    <View style={styles.unreadCountContainer}>
+                      <Text style={styles.unreadCountText}>
+                        {item.unreadMessageCount > 99 ? '99+' : item.unreadMessageCount}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               </TouchableOpacity>
             )}
           />
+          {/* Create Group Button */}
           <TouchableOpacity
             style={styles.createGroupButton}
             onPress={() => setGroupModalVisible(true)}
@@ -656,25 +869,31 @@ const GroupsScreen: React.FC = () => {
             />
             <FlatList
               data={users}
-              keyExtractor={item => item.uid}
+              keyExtractor={(item) => item.uid}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.friendItem}
                   onPress={() => {
-                    setSelectedFriends(prevState =>
-                      prevState.some(friend => friend.uid === item.uid)
-                        ? prevState.filter(friend => friend.uid !== item.uid)
-                        : [...prevState, item],
+                    setSelectedFriends((prevState) =>
+                      prevState.some((friend) => friend.uid === item.uid)
+                        ? prevState.filter((friend) => friend.uid !== item.uid)
+                        : [...prevState, item]
                     );
                   }}
                 >
                   <View style={styles.friendContainer}>
-                    <Image source={{ uri: item.avatar }} style={styles.avatar} />
+                    {item.avatar ? (
+                      <Image source={{ uri: item.avatar }} style={styles.avatar} />
+                    ) : (
+                      <View style={styles.avatarPlaceholder}>
+                        <Text style={styles.avatarInitial}>{item.name.charAt(0)}</Text>
+                      </View>
+                    )}
                     <Text
                       style={[
                         styles.friendName,
                         {
-                          fontWeight: selectedFriends.some(friend => friend.uid === item.uid)
+                          fontWeight: selectedFriends.some((friend) => friend.uid === item.uid)
                             ? 'bold'
                             : 'normal',
                         },

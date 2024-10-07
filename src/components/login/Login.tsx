@@ -307,9 +307,12 @@ export const Login: React.FC = () => {
                             </TouchableOpacity>
                         </>
                     ) : (
-                        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                            <Text style={styles.logoutButtonText}>Logout</Text>
-                        </TouchableOpacity>
+                        <>
+                            <Text style={{marginTop:30, fontSize:18, fontWeight:400, alignSelf: 'center'}}> Please Logout to continue .... </Text>
+                            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                                <Text style={styles.logoutButtonText}>Logout</Text>
+                            </TouchableOpacity>
+                        </>
                     )}
                 </>
             )}

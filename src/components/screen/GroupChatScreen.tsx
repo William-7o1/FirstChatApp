@@ -5,7 +5,6 @@ import {
     TouchableOpacity, 
     FlatList, 
     Text, 
-    StyleSheet, 
     KeyboardAvoidingView, 
     Platform, 
     Image, 
@@ -30,15 +29,19 @@ interface ChatScreenProps {
 
 const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     const { group } = route.params;
-    const [messages, setMessages] = useState([]);
+    const [messages, setMessages] = useState<any[]>([]);
     const [text, setText] = useState('');
-    const [editingMessageId, setEditingMessageId] = useState(null);
+    const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
     const [isModalVisible, setModalVisible] = useState(false);
-    const [members, setMembers] = useState([]);
+    const [members, setMembers] = useState<any[]>([]);
     const currentUserID = AppConstants.UID;
-    const inputRef = useRef(null);
-    const typingTimeoutRef = useRef(null);
-    const [typingUsers, setTypingUsers] = useState(new Set());
+    const inputRef = useRef<TextInput>(null);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+
+    // Unique listener IDs for message/user and group listeners
+    const MESSAGE_USER_LISTENER_ID = `listener_${group.guid}`;
+    const GROUP_LISTENER_ID = `group_listener_${group.guid}`;
 
     useFocusEffect(
         useCallback(() => {
@@ -51,9 +54,9 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
 
     useEffect(() => {
         inputRef.current?.focus();
-        const listenerID = `listener_${group.guid}`;
-
-        CometChat.addMessageListener(listenerID, {
+        
+        // Add Message and User Listeners
+        CometChat.addMessageListener(MESSAGE_USER_LISTENER_ID, {
             onTextMessageReceived: (message) => {
                 // Fetch previous messages to ensure state consistency
                 fetchPreviousMessages();
@@ -116,7 +119,7 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
             },
         });
 
-        CometChat.addUserListener(listenerID, {
+        CometChat.addUserListener(MESSAGE_USER_LISTENER_ID, {
             onUserOnline: (onlineUser) => {
                 console.log("User is online:", onlineUser);
                 setMembers(prevMembers => 
@@ -139,11 +142,33 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
             },
         });
         
+        // Add Group Listener for member left events
+        CometChat.addGroupListener(GROUP_LISTENER_ID, new CometChat.GroupListener({
+            onGroupMemberLeft: (message, leavingUser, group) => {
+                console.log("User left", { message, leavingUser, group });
+                if (!leavingUser) {
+                    console.error("Leaving user is undefined.");
+                    return;
+                }
+                // Create an action message indicating the user has left
+                const actionMessage = {
+                    id: `action_${Date.now()}`, // Unique ID for the action message
+                    sender: leavingUser,
+                    text: `${leavingUser.name || 'A user'} has left the group.`,
+                    type: 'action',
+                    createdAt: new Date(),
+                };
+                setMessages((prevMessages) => [actionMessage, ...prevMessages]);
+            },
+        }));
+
         fetchPreviousMessages();
 
+        // Clean up listeners on unmount
         return () => {
-            CometChat.removeMessageListener(listenerID);
-            CometChat.removeUserListener(listenerID);
+            CometChat.removeMessageListener(MESSAGE_USER_LISTENER_ID);
+            CometChat.removeUserListener(MESSAGE_USER_LISTENER_ID);
+            CometChat.removeGroupListener(GROUP_LISTENER_ID);
         };
     }, [group.guid]);
 
@@ -157,20 +182,48 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
             const fetchedMessages = await messagesRequest.fetchPrevious();
             console.log("Fetched Messages:", fetchedMessages); // For debugging
     
-            const messagesMap = new Map();
-    
+            const messagesMap = new Map<string, any>();
+
             if (fetchedMessages.length === 0) {
                 console.log("No previous messages, starting a new conversation.");
                 setMessages([]);
                 return;
             }
-    
+
             fetchedMessages.forEach((msg) => {
-                // Skip action messages
+                // Handle action messages
                 if (msg.category === 'action') {
+                    // Log the entire action message for debugging
+                    console.log("Processing action message:", msg);
+
+                    // Assuming action messages have 'action', 'actionBy', and 'actionFor'
+                    const action = msg.action;
+                    if (action === 'left') {
+                        if (action.actionBy && action.actionBy.name) {
+                            const actionMessage = {
+                                id: `action_${msg.id}`, // Unique ID
+                                sender: action.actionBy,
+                                text: `${action.actionBy.name} has left the group.`,
+                                type: 'action',
+                                createdAt: msg.sentAt, // Use sentAt for ordering
+                            };
+                            messagesMap.set(actionMessage.id, actionMessage);
+                        } else {
+                            // Handle cases where actionBy is undefined
+                            const actionMessage = {
+                                id: `action_${msg.id}`, // Unique ID
+                                sender: null,
+                                text: `A user has left the group.`,
+                                type: 'action',
+                                createdAt: msg.sentAt, // Use sentAt for ordering
+                            };
+                            messagesMap.set(actionMessage.id, actionMessage);
+                            console.warn("actionBy is undefined for action message:", msg);
+                        }
+                    }
                     return;
                 }
-    
+
                 // Detect deleted messages
                 if (msg.deletedAt || !msg.text) {
                     messagesMap.set(msg.id, { ...msg, type: 'deleted' });
@@ -183,11 +236,11 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
                     } else {
                         edited = { ...msg, edited: true };
                     }
-    
+
                     // Preserve 'readAt' and 'deliveredAt' from the original message
                     edited.readAt = msg.readAt;
                     edited.deliveredAt = msg.deliveredAt;
-    
+
                     // Set status based on readAt and deliveredAt
                     if (edited.readAt) {
                         edited.status = 'read';
@@ -196,7 +249,7 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
                     } else {
                         edited.status = 'sent';
                     }
-    
+
                     messagesMap.set(edited.id, edited);
                 }
                 else {
@@ -204,19 +257,19 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
                     msg.status = msg.readAt ? 'read' : (msg.deliveredAt ? 'delivered' : 'sent');
                     messagesMap.set(msg.id, { ...msg, edited: msg.edited || false });
                 }
-    
+
                 // Debugging: Log processed messages
                 console.log(`Processed Message ID: ${msg.id}, Edited: ${msg.edited || false}, Status: ${msg.status}`);
             });
-    
+
             const validMessages = Array.from(messagesMap.values()).reverse();
-    
+
             setMessages((prevMessages) => {
                 const currentMessageIds = new Set(prevMessages.map((msg) => msg.id));
                 const newMessages = validMessages.filter((msg) => !currentMessageIds.has(msg.id));
                 return [...prevMessages, ...newMessages];
             });
-    
+
             const lastMessage = fetchedMessages[fetchedMessages.length - 1];
             if (lastMessage) {
                 CometChat.markAsRead(lastMessage).then(
@@ -228,13 +281,13 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
                     }
                 );
             }
-    
+
         } catch (error) {
             console.error("Message fetching failed with error:", error);
         }
     };
 
-    const updateAllDeliveredMessagesToRead = (lastReadMessageId:any) => {
+    const updateAllDeliveredMessagesToRead = (lastReadMessageId: any) => {
         setMessages((prevMessages) =>
             prevMessages.map((msg) =>
                 msg.id === lastReadMessageId || (msg.status === 'delivered' && !msg.readAt)
@@ -244,7 +297,7 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         );
     };
     
-    const updateMessageStatus = (messageId, status) => {
+    const updateMessageStatus = (messageId: any, status: string) => {
         setMessages((prevMessages) =>
             prevMessages.map((msg) =>
                 msg.id === messageId ? { ...msg, status } : msg
@@ -272,8 +325,8 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         setModalVisible(!isModalVisible);
     };
 
-    const handleTextChange = (text) => {
-        setText(text);
+    const handleTextChange = (inputText: string) => {
+        setText(inputText);
         if (typingTimeoutRef.current) {
             clearTimeout(typingTimeoutRef.current); // Clear previous timeout
         }
@@ -281,7 +334,7 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
 
         const typingNotification = new CometChat.TypingIndicator(group.guid, CometChat.RECEIVER_TYPE.GROUP);
 
-        if (text.trim()) {
+        if (inputText.trim()) {
             CometChat.startTyping(typingNotification);
             typingTimeoutRef.current = setTimeout(() => {
                 CometChat.endTyping(typingNotification);
@@ -349,12 +402,12 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         }
     };
 
-    const startEditingMessage = (message) => {
+    const startEditingMessage = (message: any) => {
         setText(message.text);
         setEditingMessageId(message.id);
     };
 
-    const showMessageOptions = (message) => {
+    const showMessageOptions = (message: any) => {
         const options = [
             { text: 'Edit', onPress: () => { startEditingMessage(message) } },
             { text: 'Delete', onPress: () => { deleteMessage(message.id) } },
@@ -364,7 +417,7 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         Alert.alert("Message Options", "Choose an action:", options);
     };
 
-    const deleteMessage = (messageId) => {
+    const deleteMessage = (messageId: any) => {
         CometChat.deleteMessage(messageId).then(() => {
             setMessages((prevMessages) =>
                 prevMessages.map(msg =>
@@ -376,15 +429,28 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         });
     };
 
-    const renderMessage = ({ item }) => {
-        if (!item || item.category === 'action') {
-            // Skip rendering action messages
+    const renderMessage = ({ item }: { item: any }) => {
+        if (!item) {
+            return null;
+        }
+
+        // Handle action messages
+        if (item.type === 'action') {
+            return (
+                <View style={styles.actionMessageContainer}>
+                    <Text style={styles.actionMessageText}>{item.text}</Text>
+                </View>
+            );
+        }
+
+        // Skip rendering if category is 'action' but type is not handled
+        if (item.category === 'action') {
             return null;
         }
     
         const isSentByCurrentUser = item.sender && item.sender.uid === currentUserID;
         const isDeleted = item.type === 'deleted'; // Correctly set in fetchPreviousMessages
-    
+
         // Debugging Logs
         console.log(`Rendering Message ID: ${item.id}, Status: ${item.status}, Edited: ${item.edited}`);
         console.log(` - Read At: ${item.readAt}`);
@@ -396,7 +462,7 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
             } else if (isSentByCurrentUser && item.status === 'read') {
                 return "✓✓"; // Double tick for read
             } else {
-                return null; // No tick for other messages
+                return '✓'; // No tick for other messages
             }
         };
     
@@ -415,14 +481,10 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
                         <>
                             <Text style={styles.messageText}>{item.text || 'No message'}</Text>
                             {item.edited && <Text style={styles.editedText}>(edited)</Text>}
-                            {/*
-                            {isSentByCurrentUser && item.status && (
-                                <Text style={styles.messageStatus}>{getMessageStatusIcon()}</Text>
-                            )} */}
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Text style={styles.senderName}>{item.sender?.name || 'Unknown'}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                                <Text style={styles.senderName}>{item.sender?.name || 'Unknown'}</Text>
                                 {isSentByCurrentUser && (
-                                <Text style={styles.messageStatus}>{getMessageStatusIcon()}</Text>
+                                    <Text style={styles.messageStatus}>{getMessageStatusIcon()}</Text>
                                 )}
                             </View>
                         </>
@@ -432,7 +494,7 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         );
     };
 
-    const renderMember = ({ item }) => (
+    const renderMember = ({ item }: { item: any }) => (
         <View style={styles.memberItem}>
             <View style={{flexDirection: 'row', alignItems: 'center'}}>
                 <Image source={{ uri: item.avatar }} style={styles.memberAvatar} />
@@ -443,6 +505,33 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
             </View>
         </View>
     );
+
+    // Handler for leaving the group
+    const handleLeaveGroup = () => {
+        Alert.alert(
+            "Leave Group",
+            "Are you sure you want to leave this group?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { text: "Leave", style: "destructive", onPress: () => leaveGroup() }
+            ]
+        );
+    };
+
+    const leaveGroup = () => {
+        const GUID: string = group.guid;
+        
+        CometChat.leaveGroup(GUID).then(
+            (hasLeft: boolean) => {
+                console.log("Group left successfully:", hasLeft);
+                Alert.alert("Left Group", "You have left the group successfully.");
+                navigation.goBack(); // Navigate back after leaving
+            }, (error: CometChat.CometChatException) => {
+                console.log("Group leaving failed with exception:", error);
+                Alert.alert("Error", "Failed to leave the group. Please try again.");
+            }
+        );
+    };
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -455,10 +544,10 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
                         {Platform.OS === 'android' ? <Icon name="arrow-left" size={17} color="white" />  :  <Text style={styles.backButtonText}>←</Text>}
                     </TouchableOpacity>
                     <TouchableOpacity onPress={toggleModal} style={styles.headerContent}>
-                        {group.icon ? <Image source={{ uri: group.icon }} style={styles.avatar} /> : <Image style={styles.avatar} source={ require('../../asset/logo.png')}></Image>}
+                        {group.icon ? <Image source={{ uri: group.icon }} style={styles.avatar} /> : <Image style={styles.avatar} source={ require('../../asset/logo.png')}/>}
                         <Text style={styles.headerText}>{group.name}</Text>
                         {typingUsers.size > 0 && (
-                            <Text style={{fontSize:12, marginLeft:8, color:'white', marginTop:2}}>typing...</Text>
+                            <Text style={{fontSize:14, marginLeft:8, color:'white', marginTop:2}}>typing...</Text>
                         )}
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.callButton}>
@@ -500,8 +589,12 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
                 >
                     <View style={styles.modalContainer}>
                         <View style={styles.modalContent}>
-                            <View style={{flexDirection:'row'}}>
-                                <Image source={require('../../asset/logo.png')} style={styles.avatar} />
+                            <View style={{flexDirection:'row', alignItems: 'center', marginBottom: 10}}>
+                                {group.icon ? (
+                                    <Image source={{ uri: group.icon }} style={styles.avatar} />
+                                ) : (
+                                    <Image style={styles.avatar} source={ require('../../asset/logo.png')}/>
+                                )}
                                 <Text style={styles.modalGroupName}>{group.name}</Text>
                             </View>
                             <Text style={styles.modalSubName}>Member List</Text>
@@ -515,7 +608,7 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
                                 <TouchableOpacity onPress={toggleModal} style={styles.closeButton}>
                                     <Text style={styles.closeButtonText}>Close</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.leaveButton}>
+                                <TouchableOpacity onPress={handleLeaveGroup} style={styles.leaveButton}>
                                     <Text style={styles.leaveButtonText}>Leave Group</Text>
                                 </TouchableOpacity>
                             </View>

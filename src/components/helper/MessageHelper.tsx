@@ -40,6 +40,7 @@ export const createMessageHelper = ({
       listenerID,
       new CometChat.MessageListener({
         onTextMessageReceived: (message: CometChat.TextMessage) => {
+         
           // console.log('onTextMessageReceivedonTextMessageReceived')
           const sender = message.getSender();
           const readAt = message.getReadAt();
@@ -53,7 +54,6 @@ export const createMessageHelper = ({
               }
             );
           }
-
           onMessageAdded(message);
         },
         onTypingStarted: () => {
@@ -68,13 +68,21 @@ export const createMessageHelper = ({
         onMessageDeleted: (message: CometChat.BaseMessage) => {
           onMessageDeletedCallback(message);
         },
-        onMessagesRead: (receipt: CometChat.MessageReceipt) => {
-          console.log('onMessagesRead:', receipt);
-          updateMessagesReceipt(receipt);
-          },
-        onMessageDelivered: (receipt: CometChat.MessageReceipt) => {
-          console.log('onMessageDelivered:', receipt);
-          updateMessageReceipt(receipt);
+        // onMessagesRead: (receipt: CometChat.MessageReceipt) => {
+        //   console.log('onMessagesRead:', receipt);
+        //   updateMessagesReceipt(receipt);
+        //   },
+        // onMessageDelivered: (receipt: CometChat.MessageReceipt) => {
+        //   console.log('onMessageDelivered:', receipt);
+        //   updateMessageReceipt(receipt);
+        // },
+        onMessagesDelivered: (messageReceipt) => {
+          console.log('onMessagesDelivered:', messageReceipt);
+          updateMessageReceipt(messageReceipt, 'delivered');
+        },
+        onMessagesRead: (messageReceipt) => {
+          console.log('onMessagesRead:', messageReceipt);
+          updateMessageReceipt(messageReceipt, 'read');
         },
       })
     );
@@ -84,6 +92,25 @@ export const createMessageHelper = ({
     CometChat.removeMessageListener(listenerID);
   };
 
+
+  const updateMessageReceipt = (receipt, status) => {
+    const messageId = receipt.getMessageId();
+  
+    // Update localMessages
+    localMessages = localMessages.map((msg) => {
+      if (msg.getId() === messageId) {
+        if (status === 'delivered') {
+          msg.setDeliveredAt(receipt.getDeliveredAt());
+        } else if (status === 'read') {
+          msg.setReadAt(receipt.getReadAt());
+        }
+      }
+      return msg;
+    });
+  
+    // Update messages in ChatScreen
+    onMessagesUpdated([...localMessages]);
+  };
     // const updateMessagesReceipt = (receipt: CometChat.MessageReceipt) => {
     //   const timestamp = receipt.getTimestamp();
     //   const senderUID = receipt.getSender().getUid();
@@ -231,44 +258,6 @@ export const createMessageHelper = ({
       CometChat.RECEIVER_TYPE.USER
     );
     CometChat.endTyping(typingNotification);
-  };
-
-  const updateMessageReceipt = (receipt: CometChat.MessageReceipt) => {
-    const messageId = receipt.getMessageId();
-
-    // Find the message in localMessages
-    const index = localMessages.findIndex((msg) => msg.getId() === messageId);
-
-    if (index !== -1) {
-      const updatedMessage = localMessages[index];
-
-      // Update the readAt and deliveredAt properties
-      const readAt = receipt.getReadAt();
-      const deliveredAt = receipt.getDeliveredAt();
-
-      if (readAt) {
-        updatedMessage.setReadAt(readAt);
-      }
-      if (deliveredAt) {
-        updatedMessage.setDeliveredAt(deliveredAt);
-      }
-
-      // Update localMessages
-      localMessages[index] = updatedMessage;
-
-      // Update messages in ChatScreen
-      onMessageUpdated(updatedMessage);
-    } else {
-      // If message not found in local state, fetch from server
-      CometChat.getMessageDetails(messageId).then(
-        (message) => {
-          onMessageUpdated(message);
-        },
-        (error) => {
-          console.error('Error fetching message details:', error);
-        }
-      );
-    }
   };
 
   return {
