@@ -41,7 +41,7 @@ const Home: React.FC = () => {
       }}
     >
       <Tab.Screen
-        name="Friends"
+        name="Chats"
         component={FriendsScreen}
         options={{
           tabBarIcon: ({ color }) => <Icon name="rocket" size={24} color={color} />,
@@ -89,6 +89,9 @@ const FriendsScreen: React.FC = () => {
   const [isUserModalVisible, setIsUserModalVisible] = useState<boolean>(false);
   const { setIncomingCallVisible, setCaller, setSessionID, incomingCallVisible, caller, sessionID } = useCall();
 
+  // State to track typing statuses
+  const [typingStatuses, setTypingStatuses] = useState<{ [key: string]: boolean }>({});
+
   useFocusEffect(
     React.useCallback(() => {
       fetchConversations();
@@ -132,7 +135,7 @@ const FriendsScreen: React.FC = () => {
       })
     );
 
-    // Message listener
+    // Message listener with typing indicators
     CometChat.addMessageListener(
       messageListenerID,
       new CometChat.MessageListener({
@@ -177,6 +180,18 @@ const FriendsScreen: React.FC = () => {
         },
         onMessageReadReceipt: (messageReceipt: CometChat.MessageReceipt) => {
           handleReadReceipt(messageReceipt);
+        },
+        onTypingStarted: (typingIndicator: CometChat.TypingIndicator) => {
+          const { sender, receiverId, receiverType } = typingIndicator;
+          if (receiverType === 'user') {
+            setTypingStatuses(prev => ({ ...prev, [sender.getUid()]: true }));
+          }
+        },
+        onTypingEnded: (typingIndicator: CometChat.TypingIndicator) => {
+          const { sender, receiverId, receiverType } = typingIndicator;
+          if (receiverType === 'user') {
+            setTypingStatuses(prev => ({ ...prev, [sender.getUid()]: false }));
+          }
         },
       })
     );
@@ -353,12 +368,70 @@ const FriendsScreen: React.FC = () => {
     navigation.navigate('Chat', { user });
   };
 
+  const renderConversationItem = ({ item }: { item: ConversationItem }) => {
+    const isTyping = typingStatuses[item.conversationWith.uid];
+
+    return (
+      <TouchableOpacity
+        style={styles.userItem}
+        onPress={() => navigateToChat(item.conversationWith)}
+      >
+        <View style={styles.conversationContainer}>
+          <View style={styles.userInfo}>
+            <View style={styles.avatarContainer}>
+              {item.conversationWith.avatar ? (
+                <Image
+                  source={{ uri: item.conversationWith.avatar }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <Image
+                  source={require('../../asset/logo.png')}
+                  style={styles.avatar}
+                />
+              )}
+              <View
+                style={[
+                  styles.statusIndicator,
+                  {
+                    backgroundColor:
+                      item.conversationWith.status === 'online' ? '#34C759' : '#8E8E93',
+                  },
+                ]}
+              />
+            </View>
+            <View style={styles.textContainer}>
+              <Text style={styles.userName}>{item.conversationWith.name}</Text>
+              {isTyping && (
+                <Text style={styles.typingText}>Typing...</Text>
+              )}
+              {!isTyping && (
+                <Text style={styles.lastMessage} numberOfLines={1}>
+                  {item.lastMessage ? item.lastMessage.getText() : ''}
+                </Text>
+              )}
+            </View>
+            <View style={styles.statusContainer}>
+              {item.unreadMessageCount > 0 && (
+                <View style={styles.unreadCountContainer}>
+                  <Text style={styles.unreadCountText}>
+                    {item.unreadMessageCount > 99 ? '99+' : item.unreadMessageCount}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Image source={require('../../asset/logo.png')} style={styles.logo} />
-        <Text style={styles.headerTitle}>First Friends</Text>
+        <Text style={styles.headerTitle}> Chats </Text>
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
@@ -375,53 +448,7 @@ const FriendsScreen: React.FC = () => {
         <FlatList
           data={conversations}
           keyExtractor={item => item.conversationId}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.userItem}
-              onPress={() => navigateToChat(item.conversationWith)}
-            >
-              <View style={styles.conversationContainer}>
-                <View style={styles.userInfo}>
-                  <View style={styles.avatarContainer}>
-                  {item.conversationWith.avatar ?
-                  <Image
-                  source={{ uri: item.conversationWith.avatar }}
-                  style={styles.avatar}
-                />
-              :<Image
-              source={require('../../asset/logo.png')}
-              style={styles.avatar}
-            />}
-                    
-                    <View
-                      style={[
-                        styles.statusIndicator,
-                        {
-                          backgroundColor:
-                            item.conversationWith.status === 'online' ? '#34C759' : '#8E8E93',
-                        },
-                      ]}
-                    />
-                  </View>
-                  <View style={styles.textContainer}>
-                    <Text style={styles.userName}>{item.conversationWith.name}</Text>
-                    <Text style={styles.lastMessage} numberOfLines={1}>
-                      {item.lastMessage ? item.lastMessage.getText() : ''}
-                    </Text>
-                  </View>
-                  <View style={styles.statusContainer}>
-                    {item.unreadMessageCount > 0 && (
-                      <View style={styles.unreadCountContainer}>
-                        <Text style={styles.unreadCountText}>
-                          {item.unreadMessageCount > 99 ? '99+' : item.unreadMessageCount}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
-          )}
+          renderItem={renderConversationItem}
         />
       )}
 

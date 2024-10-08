@@ -33,22 +33,47 @@ export const styles = StyleSheet.create({
         fontSize: 24,
         color: '#fff',
     },
+    // headerContent: {
+    //     flex: 1,
+    //     flexDirection: 'row',
+    //     alignItems: 'center',
+    // },
+    // avatar: {
+    //     width: 40,
+    //     height: 40,
+    //     borderRadius: 20,
+    //     marginRight: 10,
+    // },
+    // headerText: {
+    //     fontSize: 18,
+    //     fontWeight: 'bold',
+    //     color: '#fff',
+    // },
     headerContent: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-    },
-    avatar: {
+      },
+      avatar: {
         width: 40,
         height: 40,
         borderRadius: 20,
         marginRight: 10,
-    },
-    headerText: {
+      },
+      nameContainer: {
+        flexDirection: 'column',
+      },
+      headerText: {
         fontSize: 18,
         fontWeight: 'bold',
         color: '#fff',
-    },
+      },
+      typingText: {
+        marginLeft: 0,
+        fontSize: 14,
+        marginTop: 3,
+        color: 'white',
+      },
     messageList: {
         paddingBottom: 15,
     },

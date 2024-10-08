@@ -101,7 +101,7 @@ const CallingScreen = ({ navigation, route }) => {
             });
 
             const settings = new CometChatCalls.CallSettingsBuilder()
-                .setIsAudioOnlyCall(true)  // Set to false if video call is needed
+                .setIsAudioOnlyCall(false)  // Set to false if video call is needed
                 .setCallEventListener(callListener)
                 .enableDefaultLayout(true)
                 .build();

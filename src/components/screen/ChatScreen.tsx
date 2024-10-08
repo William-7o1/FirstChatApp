@@ -348,7 +348,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
               <Text style={styles.backButtonText}>←</Text>
             )}
           </TouchableOpacity>
-          <View style={styles.headerContent}>
+          {/* <View style={styles.headerContent}>
             {user.avatar && <Image source={{ uri: user.avatar }} style={styles.avatar} />}
             <Text style={styles.headerText}>{user.name}</Text>
             {otherUserTyping && (
@@ -356,6 +356,15 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
                 Typing...
               </Text>
             )}
+          </View> */}
+          <View style={styles.headerContent}>
+            {user.avatar && <Image source={{ uri: user.avatar }} style={styles.avatar} />}
+            <View style={styles.nameContainer}>
+              <Text style={styles.headerText}>{user.name}</Text>
+              {otherUserTyping && (
+                <Text style={styles.typingText}>Typing...</Text>
+              )}
+            </View>
           </View>
           <TouchableOpacity
             onPress={() => initiateCallUser(CometChat.CALL_TYPE.AUDIO)}
