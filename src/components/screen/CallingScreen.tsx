@@ -8,7 +8,7 @@ import { styles } from '../styles/CallingScreenStyle';
 import { CometChatCalls } from '@cometchat/calls-sdk-react-native';
 
 const CallingScreen = ({ navigation, route }) => {
-    const { sessionID } = route.params || {};
+    const { sessionID, callType } = route.params || {}; 
     const [callStatus, setCallStatus] = useState('Connecting...');
     const [isInCall, setInCall] = useState(false);
     const [callSettings, setCallSettings] = useState(null);
@@ -101,7 +101,7 @@ const CallingScreen = ({ navigation, route }) => {
             });
 
             const settings = new CometChatCalls.CallSettingsBuilder()
-                .setIsAudioOnlyCall(false)  // Set to false if video call is needed
+                .setIsAudioOnlyCall(callType === CometChat.CALL_TYPE.AUDIO) // Set to false if video call is needed
                 .setCallEventListener(callListener)
                 .enableDefaultLayout(true)
                 .build();

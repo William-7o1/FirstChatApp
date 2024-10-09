@@ -1,3 +1,4 @@
+// Home.tsx or Home.jsx
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -9,15 +10,14 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useNavigation, NavigationProp } from '@react-navigation/native';
+import { useNavigation, NavigationProp, useFocusEffect } from '@react-navigation/native';
 import { CometChat } from '@cometchat/chat-sdk-react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { styles } from '../styles/HomeStyle';
-import { useFocusEffect } from '@react-navigation/native';
+import { styles } from '../styles/HomeStyle'; // Updated styles with groupItem
 import { useCall } from '../../../CallContext'; // Adjust path
-
 
 const Tab = createBottomTabNavigator();
 
@@ -28,14 +28,36 @@ type RootStackParamList = {
   Chat: { user: UserItem };
   GroupChatScreen: { group: GroupItem };
   Login: undefined;
+  CallingScreen: { sessionID: string };
 };
+
+interface UserItem {
+  uid: string;
+  name: string;
+  avatar: string;
+  status: 'online' | 'offline' | string;
+}
+
+interface ConversationItem {
+  conversationId: string;
+  conversationType: 'user' | 'group';
+  conversationWith: UserItem | GroupItem;
+  lastMessage: CometChat.BaseMessage | null;
+  unreadMessageCount: number;
+}
+
+interface GroupItem {
+  guid: string;
+  name: string;
+  icon: string;
+}
 
 const Home: React.FC = () => {
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#6200ee',
+        tabBarActiveTintColor: styles.logoutButton.backgroundColor,
         tabBarInactiveTintColor: '#888',
         tabBarStyle: { backgroundColor: '#fff', borderTopWidth: 0 },
       }}
@@ -58,36 +80,14 @@ const Home: React.FC = () => {
   );
 };
 
-interface UserItem {
-  uid: string;
-  name: string;
-  avatar: string;
-  status: 'online' | 'offline' | string;
-}
-
-interface UserItem {
-  uid: string;
-  name: string;
-  avatar: string;
-  status: 'online' | 'offline' | string;
-}
-
-interface ConversationItem {
-  conversationId: string;
-  conversationType: 'user';
-  conversationWith: UserItem;
-  lastMessage: CometChat.BaseMessage;
-  unreadMessageCount: number;
-}
-
 const FriendsScreen: React.FC = () => {
-  const navigation = useNavigation<NavigationProp<any>>();
+  const navigation = useNavigation<NavigationProp<RootStackParamList, 'Friends'>>();
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [messageStatuses, setMessageStatuses] = useState([]);
   const [users, setUsers] = useState<UserItem[]>([]);
   const [isUserModalVisible, setIsUserModalVisible] = useState<boolean>(false);
   const { setIncomingCallVisible, setCaller, setSessionID, incomingCallVisible, caller, sessionID } = useCall();
+  const [incomingCallType, setIncomingCallType] = useState<string | null>(null);
 
   // State to track typing statuses
   const [typingStatuses, setTypingStatuses] = useState<{ [key: string]: boolean }>({});
@@ -202,6 +202,7 @@ const FriendsScreen: React.FC = () => {
       new CometChat.CallListener({
         onIncomingCallReceived: (call) => {
           console.log('Incoming call:', call);
+          setIncomingCallType(call.getType());
           setSessionID(call.getSessionId());
           setCaller({
             name: call.getSender().getName(),
@@ -219,12 +220,14 @@ const FriendsScreen: React.FC = () => {
           Alert.alert('Call Rejected', `${call.getSender().getName()} rejected the call.`);
         },
         onIncomingCallCancelled: (call) => {
+          setIncomingCallType(null);
           console.log('Incoming call cancelled:', call);
           setIncomingCallVisible(false);
           Alert.alert('Call Cancelled', 'The caller has cancelled the call.');
         },
         onCallEndedMessageReceived: (call) => {
           console.log('CallEnded Message:', call);
+          navigation.goBack();
         },
       })
     );
@@ -307,22 +310,27 @@ const FriendsScreen: React.FC = () => {
       navigation.navigate('Login');
     } catch (error) {
       console.error('Logout failed:', error);
+      Alert.alert('Logout Failed', 'Unable to logout. Please try again.');
     }
   };
 
   const handleReadReceipt = (messageReceipt: CometChat.MessageReceipt) => {
     const { sender, receiverId } = messageReceipt;
-    const currentUserID = CometChat.getLoggedinUser().getUid();
+    const currentUser = CometChat.getLoggedinUser();
 
-    // Check if the current user is the receiver of the read receipt
-    if (messageReceipt.getReceiverType() === 'user' && receiverId === currentUserID) {
-      setConversations(prevConversations =>
-        prevConversations.map(conversation =>
-          conversation.conversationWith.uid === sender.uid
-            ? { ...conversation, unreadMessageCount: 0 }
-            : conversation
-        )
-      );
+    if (currentUser) {
+      const currentUserID = currentUser.getUid();
+
+      // Check if the current user is the receiver of the read receipt
+      if (messageReceipt.getReceiverType() === 'user' && receiverId === currentUserID) {
+        setConversations(prevConversations =>
+          prevConversations.map(conversation =>
+            conversation.conversationWith.uid === sender.uid
+              ? { ...conversation, unreadMessageCount: 0 }
+              : conversation
+          )
+        );
+      }
     }
   };
 
@@ -332,16 +340,18 @@ const FriendsScreen: React.FC = () => {
     CometChat.acceptCall(sessionID).then(
       (call) => {
         console.log('Call accepted successfully:', call);
-        navigation.navigate('CallingScreen', { sessionID });
+        const callType = incomingCallType
+        navigation.navigate('CallingScreen', { sessionID , callType});
       },
       (error) => {
         console.log('Call acceptance failed with error', error);
       }
     );
   };
-  
+
   const rejectIncomingCall = (sessionID: string) => {
     setIncomingCallVisible(false);
+    setIncomingCallType(null);
     setCaller(null);
     const rejectStatus = CometChat.CALL_STATUS.REJECTED;
     CometChat.rejectCall(sessionID, rejectStatus).then(
@@ -353,9 +363,10 @@ const FriendsScreen: React.FC = () => {
       }
     );
   };
-  
+
   const startCallSession = (call: CometChat.Call) => {
-    navigation.navigate('CallingScreen', { sessionID: call.getSessionId() });
+    const callType = call.getType();
+    navigation.navigate('CallingScreen', { sessionID: call.getSessionId(), callType});
   };
 
   const navigateToSelectContact = async () => {
@@ -374,54 +385,48 @@ const FriendsScreen: React.FC = () => {
     return (
       <TouchableOpacity
         style={styles.userItem}
-        onPress={() => navigateToChat(item.conversationWith)}
+        onPress={() => navigateToChat(item.conversationWith as UserItem)}
       >
-        <View style={styles.conversationContainer}>
-          <View style={styles.userInfo}>
-            <View style={styles.avatarContainer}>
-              {item.conversationWith.avatar ? (
-                <Image
-                  source={{ uri: item.conversationWith.avatar }}
-                  style={styles.avatar}
-                />
-              ) : (
-                <Image
-                  source={require('../../asset/logo.png')}
-                  style={styles.avatar}
-                />
-              )}
-              <View
-                style={[
-                  styles.statusIndicator,
-                  {
-                    backgroundColor:
-                      item.conversationWith.status === 'online' ? '#34C759' : '#8E8E93',
-                  },
-                ]}
-              />
-            </View>
-            <View style={styles.textContainer}>
-              <Text style={styles.userName}>{item.conversationWith.name}</Text>
-              {isTyping && (
-                <Text style={styles.typingText}>Typing...</Text>
-              )}
-              {!isTyping && (
-                <Text style={styles.lastMessage} numberOfLines={1}>
-                  {item.lastMessage ? item.lastMessage.getText() : ''}
-                </Text>
-              )}
-            </View>
-            <View style={styles.statusContainer}>
-              {item.unreadMessageCount > 0 && (
-                <View style={styles.unreadCountContainer}>
-                  <Text style={styles.unreadCountText}>
-                    {item.unreadMessageCount > 99 ? '99+' : item.unreadMessageCount}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
+        <View style={styles.avatarContainer}>
+          {item.conversationWith.avatar ? (
+            <Image
+              source={{ uri: item.conversationWith.avatar }}
+              style={styles.avatar}
+            />
+          ) : (
+            <Image
+              source={require('../../asset/logo.png')}
+              style={styles.avatar}
+            />
+          )}
+          <View
+            style={[
+              styles.statusIndicator,
+              {
+                backgroundColor:
+                  (item.conversationWith as UserItem).status === 'online' ? '#34C759' : '#8E8E93',
+              },
+            ]}
+          />
         </View>
+        <View style={styles.textContainer}>
+          <Text style={styles.userName}>{(item.conversationWith as UserItem).name}</Text>
+          {isTyping && (
+            <Text style={styles.lastMessage}>Typing...</Text>
+          )}
+          {!isTyping && (
+            <Text style={styles.lastMessage} numberOfLines={1}>
+              {item.lastMessage ? item.lastMessage.getText() : ''}
+            </Text>
+          )}
+        </View>
+        {item.unreadMessageCount > 0 && (
+          <View style={styles.unreadCountContainer}>
+            <Text style={styles.unreadCountText}>
+              {item.unreadMessageCount > 99 ? '99+' : item.unreadMessageCount}
+            </Text>
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
@@ -431,7 +436,7 @@ const FriendsScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <Image source={require('../../asset/logo.png')} style={styles.logo} />
-        <Text style={styles.headerTitle}> Chats </Text>
+        <Text style={styles.headerTitle}>Chats</Text>
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
@@ -439,7 +444,7 @@ const FriendsScreen: React.FC = () => {
 
       {/* Conversations List or Empty State */}
       {loading ? (
-        <ActivityIndicator size="large" color="#6200ee" style={styles.loader} />
+        <ActivityIndicator size="large" color={styles.logoutButton.backgroundColor} style={styles.loader} />
       ) : conversations.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>No conversations yet. Start chatting!</Text>
@@ -500,30 +505,35 @@ const FriendsScreen: React.FC = () => {
         onRequestClose={() => setIsUserModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.userModalContainer}>
+          <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>Select a User</Text>
             {users.length === 0 ? (
-              <ActivityIndicator size="large" color="#6200ee" style={styles.loader} />
+              <ActivityIndicator size="large" color={styles.logoutButton.backgroundColor} style={styles.loader} />
             ) : (
               <FlatList
                 data={users}
                 keyExtractor={item => item.uid}
                 renderItem={({ item }) => (
                   <TouchableOpacity
-                    style={styles.userItemModal}
+                    style={styles.friendItem}
                     onPress={() => handleUserSelect(item)}
                   >
-                    <Image source={{ uri: item.avatar }} style={styles.userAvatar} />
-                    <View style={styles.userInfoModal}>
-                      <Text style={styles.userNameModal}>{item.name}</Text>
-                      <Text style={styles.userStatusModal}>{item.status}</Text>
+                    <View style={styles.friendContainer}>
+                      {item.avatar ? (
+                        <Image source={{ uri: item.avatar }} style={styles.avatar} />
+                      ) : (
+                        <View style={styles.avatarPlaceholder}>
+                          <Text style={styles.avatarInitial}>{item.name.charAt(0)}</Text>
+                        </View>
+                      )}
+                      <Text style={styles.friendName}>{item.name}</Text>
                     </View>
                   </TouchableOpacity>
                 )}
               />
             )}
             <TouchableOpacity
-              style={styles.closeButton}
+              style={styles.closeButton1}
               onPress={() => setIsUserModalVisible(false)}
             >
               <Text style={styles.closeButtonText}>Close</Text>
@@ -535,12 +545,6 @@ const FriendsScreen: React.FC = () => {
   );
 };
 
-interface GroupItem {
-  guid: string;
-  name: string;
-  icon: string;
-}
-
 const GroupsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList, 'Groups'>>();
   const [groups, setGroups] = useState<ConversationItem[]>([]);
@@ -549,6 +553,7 @@ const GroupsScreen: React.FC = () => {
   const [groupName, setGroupName] = useState<string>('');
   const [selectedFriends, setSelectedFriends] = useState<UserItem[]>([]);
   const [users, setUsers] = useState<UserItem[]>([]);
+  const [incomingCallType, setIncomingCallType] = useState<string | null>(null);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -655,6 +660,7 @@ const GroupsScreen: React.FC = () => {
       setUsers(usersData);
     } catch (error) {
       console.error('Fetching users failed:', error);
+      Alert.alert('Error', 'Failed to fetch users.');
     }
   };
 
@@ -780,6 +786,7 @@ const GroupsScreen: React.FC = () => {
       navigation.navigate('Login');
     } catch (error) {
       console.error('Logout failed:', error);
+      // Alert.alert('Logout Failed', 'Unable to logout. Please try again.');
     }
   };
 
@@ -816,7 +823,7 @@ const GroupsScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <Image source={require('../../asset/logo.png')} style={styles.logo} />
-        <Text style={{ fontSize: 20, fontWeight: '600' }}>Group Conversations</Text>
+        <Text style={styles.headerTitle}>Group Conversations</Text>
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
@@ -824,19 +831,23 @@ const GroupsScreen: React.FC = () => {
 
       {/* Loading Indicator */}
       {loading ? (
-        <ActivityIndicator size="large" color="#6200ee" />
+        <ActivityIndicator size="large" color="#6200ee" style={styles.loader} />
       ) : (
         <>
           {/* Group Conversations List */}
-          <FlatList
-            data={groups}
-            keyExtractor={(item) => item.conversationId}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.groupItem}
-                onPress={() => navigateToGroupChat(item.conversationWith)}
-              >
-                <View style={styles.conversationContainer}>
+          {groups.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No group conversations yet. Start by creating a group!</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={groups}
+              keyExtractor={(item) => item.conversationId}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.groupItem}
+                  onPress={() => navigateToGroupChat(item.conversationWith as GroupItem)}
+                >
                   <View style={styles.avatarContainer}>
                     {item.conversationWith.icon ? (
                       <Image
@@ -846,13 +857,13 @@ const GroupsScreen: React.FC = () => {
                     ) : (
                       <View style={styles.avatarPlaceholder}>
                         <Text style={styles.avatarInitial}>
-                          {item.conversationWith.name.charAt(0)}
+                          {(item.conversationWith as GroupItem).name.charAt(0)}
                         </Text>
                       </View>
                     )}
                   </View>
                   <View style={styles.textContainer}>
-                    <Text style={styles.groupName}>{item.conversationWith.name}</Text>
+                    <Text style={styles.groupName}>{(item.conversationWith as GroupItem).name}</Text>
                     <Text style={styles.lastMessage} numberOfLines={1}>
                       {item.lastMessage ? getMessageText(item.lastMessage) : 'No messages yet'}
                     </Text>
@@ -864,13 +875,13 @@ const GroupsScreen: React.FC = () => {
                       </Text>
                     </View>
                   )}
-                </View>
-              </TouchableOpacity>
-            )}
-          />
+                </TouchableOpacity>
+              )}
+            />
+          )}
           {/* Create Group Button */}
           <TouchableOpacity
-            style={styles.createGroupButton}
+            style={styles.createGroupButtonOut}
             onPress={() => setGroupModalVisible(true)}
           >
             <Text style={styles.createGroupButtonText}>Create Group</Text>
@@ -921,8 +932,11 @@ const GroupsScreen: React.FC = () => {
                         styles.friendName,
                         {
                           fontWeight: selectedFriends.some((friend) => friend.uid === item.uid)
-                            ? 'bold'
+                            ? '700'
                             : 'normal',
+                          color: selectedFriends.some((friend) => friend.uid === item.uid)
+                            ? '#128C7E' // Highlight selected friends with a different color
+                            : '#333333',
                         },
                       ]}
                     >
@@ -932,11 +946,23 @@ const GroupsScreen: React.FC = () => {
                 </TouchableOpacity>
               )}
             />
-            <View style={{ flexDirection: 'row' }}>
-              <TouchableOpacity style={styles.createGroupButton} onPress={createGroup}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginTop: 15 }}>
+              <TouchableOpacity
+                style={[
+                  styles.createGroupButton,
+                  { flex: 1, marginRight: 5 } // Ensures the button takes up half the space
+                ]}
+                onPress={createGroup}
+              >
                 <Text style={styles.createGroupButtonText}>Create Group</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.closeButton} onPress={resetGroupModal}>
+              <TouchableOpacity
+                style={[
+                  styles.closeButton,
+                  { flex: 1, marginLeft: 5 } // Ensures the button takes up half the space
+                ]}
+                onPress={resetGroupModal}
+              >
                 <Text style={styles.closeButtonText}>Close</Text>
               </TouchableOpacity>
             </View>

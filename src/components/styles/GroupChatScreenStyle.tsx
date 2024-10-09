@@ -46,22 +46,39 @@ export const styles = StyleSheet.create({
         color: 'white',
         fontWeight: 'bold',
     },
-    headerContent: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
+    // headerContent: {
+    //     flex: 1,
+    //     flexDirection: 'row',
+    //     alignItems: 'center',
+    // },
     avatar: {
         width: 40,
         height: 40,
         borderRadius: 20,
         marginRight: 10,
     },
+    headerContent: {
+        flex: 1,
+        flexDirection: 'column',  // Stack elements vertically
+        alignItems: 'flex-start',  // Align items to the start (left)
+    },
     headerText: {
         fontSize: 18,
         fontWeight: 'bold',
         color: '#fff',
     },
+    typingText: {
+        fontSize: 14,
+        color: 'white',
+        fontStyle: 'italic',
+        marginTop: 3, // Adjust this to control spacing between name and typing indicator
+        // backgroundColor: 'rgba(255, 0, 0, 0.2)',  // Temporary background to test visibility
+    },
+    // headerText: {
+    //     fontSize: 18,
+    //     fontWeight: 'bold',
+    //     color: '#fff',
+    // },
     messageList: {
         paddingBottom: 15,
     },
@@ -171,7 +188,7 @@ export const styles = StyleSheet.create({
         fontSize: 16,
     },
     closeButton: {
-        backgroundColor: '#FF3B30',
+        backgroundColor: '#25D366',
         borderRadius: 20,
         paddingVertical: 5,
         
@@ -187,7 +204,7 @@ export const styles = StyleSheet.create({
         textAlign: 'center', // Center text within the button
     },
     leaveButton: {
-        backgroundColor: '#FFCC00',
+        backgroundColor: '#128C7E',
         borderRadius: 20,
         paddingVertical: 5,
         paddingHorizontal: 10,

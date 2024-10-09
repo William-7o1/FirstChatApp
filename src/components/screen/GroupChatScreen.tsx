@@ -543,19 +543,28 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                         {Platform.OS === 'android' ? <Icon name="arrow-left" size={17} color="white" />  :  <Text style={styles.backButtonText}>←</Text>}
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={toggleModal} style={styles.headerContent}>
-                        {group.icon ? <Image source={{ uri: group.icon }} style={styles.avatar} /> : <Image style={styles.avatar} source={ require('../../asset/logo.png')}/>}
+                    <TouchableOpacity onPress={toggleModal} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {group.icon ? <Image source={{ uri: group.icon }} style={styles.avatar} /> : <Image style={styles.avatar} source={require('../../asset/logo.png')} />}
+                    <View style={styles.headerContent}>
                         <Text style={styles.headerText}>{group.name}</Text>
                         {typingUsers.size > 0 && (
-                            <Text style={{fontSize:14, marginLeft:8, color:'white', marginTop:2}}>typing...</Text>
+                            <Text style={[styles.typingText]}>
+                                typing...
+                            </Text>
                         )}
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.callButton}>
+                    </View>
+                    {/* <TouchableOpacity
+                        onPress={()=> {}}
+                        style={styles.callButton}
+                    >
                         <Icon name="phone" size={20} color="white" />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.callButton}>
+                    </TouchableOpacity> */}
+                    {/* <TouchableOpacity
+                        style={styles.callButton}
+                        >
                         <Icon name="video-camera" size={20} color="white" />
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
+                </TouchableOpacity>
                 </View>
                 <FlatList
                     data={messages}

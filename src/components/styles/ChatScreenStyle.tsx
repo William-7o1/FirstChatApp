@@ -224,4 +224,32 @@ modalOverlay: {
     fontSize: 16,
     fontWeight: 'bold',
   },
+  callBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 15,
+    marginVertical: 5,
+    maxWidth: '80%',
+  },
+  sentCallBubble: {
+    backgroundColor: '#697565', // Blue color for sent calls
+    alignSelf: 'flex-end',
+  },
+  receivedCallBubble: {
+    backgroundColor: '#3A6D8C', // Green color for received calls (you can choose blue as well)
+    alignSelf: 'flex-start',
+  },
+  callIcon: {
+    marginRight: 8,
+  },
+  callText: {
+    color: '#fff',
+    fontSize: 16,
+  },
+  callTimestamp: {
+    color: '#fff',
+    fontSize: 12,
+    marginLeft: 'auto',
+  },
 });

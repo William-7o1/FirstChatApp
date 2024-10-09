@@ -1,163 +1,245 @@
-import { StyleSheet } from "react-native";
-import { Platform } from "react-native";
+import { StyleSheet, Dimensions, Platform } from "react-native";
+
+// Get device dimensions for responsive design
+const { width } = Dimensions.get('window');
 
 export const styles = StyleSheet.create({
     container: {
         flex: 1,
         padding: 20,
-        backgroundColor: '#f8f9fa',
+        backgroundColor: '#ffffff',
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 10,
-        marginTop: Platform.OS === "ios" ? 50 : 20,
+        marginBottom: 15,
+        marginTop: Platform.OS === "ios" ? 50 : 10,
     },
     logo: {
         width: 40,
         height: 40,
+        resizeMode: 'contain',
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#075E54', // WhatsApp green
     },
     logoutButton: {
-        backgroundColor: '#6200ee',
-        borderRadius: 5,
-        padding: 10,
+        backgroundColor: '#25D366', // WhatsApp green
+        borderRadius: 20,
+        paddingVertical: 8,
+        paddingHorizontal: 15,
+        shadowColor: '#25D366',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3,
+        elevation: 3,
     },
     logoutText: {
         color: '#fff',
-        fontWeight: 'bold',
+        fontWeight: '600',
+        fontSize: 14,
     },
     userItem: {
-        padding: 15,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#ddd',
+        borderBottomColor: '#e0e0e0',
+    },
+    avatarContainer: {
+        position: 'relative',
     },
     avatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        marginRight: 10,
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+    },
+    statusIndicator: {
+        position: 'absolute',
+        bottom: 0,
+        right: -2,
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        borderWidth: 2,
+        borderColor: '#ffffff',
+    },
+    textContainer: {
+        flex: 1,
+        marginLeft: 15,
     },
     userName: {
         fontSize: 16,
-        color: '#333',
-    },
-    groupItem: {
-        padding: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: '#ddd',
-    },
-    groupName: {
-        fontSize: 16,
-        color: '#333',
-    },
-    createGroupButton: {
-        backgroundColor: '#6200ee',
-        borderRadius: 10,
-        padding: 10,
-        marginTop: 10,
-        alignItems: 'center',
-        marginHorizontal: 30
-    },
-    createGroupButtonText: {
-        color: '#fff',
-        fontWeight: 'bold',
-    },
-    modalBackground: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    },
-    modalContainer: {
-        width: '80%',
-        backgroundColor: '#fff',
-        padding: 20,
-        borderRadius: 10,
-        alignItems: 'center',
-    },
-    modalTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: 20,
-    },
-    input: {
-        width: '100%',
-        borderColor: '#ddd',
-        borderWidth: 1,
-        borderRadius: 5,
-        padding: 10,
-        marginBottom: 20,
-    },
-    friendContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    friendItem: {
-        padding: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#ddd',
-    },
-    friendName: {
-        fontSize: 16,
-        color: '#333',
-    },
-    closeButton: {
-        marginTop: 10,
-        backgroundColor: '#ccc',
-        borderRadius: 5,
-        padding: 10,
-    },
-    closeButtonText: {
-        fontWeight: 'bold',
-        alignSelf:'center'
-    },
-    conversationContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    userInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
+        fontWeight: '600',
+        color: '#333333',
     },
     lastMessage: {
-        color: '#888',
         fontSize: 14,
-        marginTop: 2,
-    },
-    statusContainer: {
-        alignItems: 'flex-end',
+        color: '#888888',
+        marginTop: 4,
     },
     unreadCountContainer: {
-        backgroundColor: '#6200ee',
+        backgroundColor: '#25D366',
         borderRadius: 12,
         paddingHorizontal: 6,
         paddingVertical: 2,
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 5,
     },
     unreadCountText: {
-        color: '#fff',
+        color: '#ffffff',
         fontSize: 12,
+        fontWeight: '600',
     },
-    avatarContainer: {
-        position: 'relative',
+    loader: {
+        marginTop: 20,
     },
-    statusIndicator: {
-        position: 'absolute',
-        bottom: 0,
-        right: 40,
-        width: 14,
-        height: 14,
-        borderRadius: 7,
-        borderWidth: 2,
-        borderColor: '#fff',
-    },
-    textContainer: {
+    emptyContainer: {
         flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+    },
+    emptyText: {
+        fontSize: 16,
+        color: '#8E8E93',
+        textAlign: 'center',
+    },
+    fab: {
+        position: 'absolute',
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: '#128C7E',
+        alignItems: 'center',
+        justifyContent: 'center',
+        right: 20,
+        bottom: 30,
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+    },
+    fabIcon: {
+        fontSize: 30,
+        color: '#fff',
+        lineHeight: 30,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        marginBottom: 20,
+        color: '#333333',
+    },
+    input: {
+        width: '100%',
+        borderColor: '#e0e0e0',
+        borderWidth: 1,
+        borderRadius: 25,
+        paddingVertical: 12,
+        paddingHorizontal: 15,
+        backgroundColor: '#f9f9f9',
+        fontSize: 16,
+        color: '#333333',
+        marginBottom: 15,
+    },
+    friendItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 10,
+        borderBottomColor: '#e0e0e0',
+        borderBottomWidth: 1,
+    },
+    friendContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        width:'90%'
+    },
+    friendName: {
+        fontSize: 16,
+        color: '#333333',
         marginLeft: 10,
+    },
+    createGroupButtonOut: {
+        backgroundColor: '#25D366',
+        borderRadius: 20,
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        marginTop: 15,
+        alignItems: 'center',
+        width: '100%',
+        shadowColor: '#25D366',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3,
+        elevation: 3,
+    },
+    createGroupButton: {
+        backgroundColor: '#25D366',
+        borderRadius: 20,
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        marginTop: 15,
+        alignItems: 'center',
+        shadowColor: '#25D366',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3,
+        elevation: 3,
+        flex: 1,  // Ensure it takes up only half the space
+    },
+    
+    closeButton: {
+        // backgroundColor: '#25D366',
+        backgroundColor: '#128C7E',
+        borderRadius: 20,
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        marginTop: 15,
+        alignItems: 'center',
+        shadowColor: '#25D366',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3,
+        elevation: 3,
+        flex: 1,  // Ensure it takes up only half the space
+    },
+    
+    createGroupButtonText: {
+        color: '#ffffff',
+        fontWeight: '600',
+        fontSize: 16,
+    },
+    closeButton1: {
+        backgroundColor: '#25D366',
+        borderRadius: 20,
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        marginTop: 10,
+        alignItems: 'center',
+        width: '60%',
+    },
+    closeButtonText: {
+        color: 'white',
+        fontWeight: '600',
+        fontSize: 16,
+    },
+    // Incoming Call Modal Styles
+    modalBackground: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.5)',
     },
     callerAvatar: {
         width: 80,
@@ -169,19 +251,20 @@ export const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: '#ccc',
+        backgroundColor: '#cccccc',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 20,
     },
     callerInitial: {
         fontSize: 30,
-        color: '#fff',
+        color: '#ffffff',
     },
     callerName: {
         fontSize: 20,
-        fontWeight: 'bold',
+        fontWeight: '700',
         marginBottom: 20,
+        color: '#333333',
     },
     modalButtons: {
         flexDirection: 'row',
@@ -190,8 +273,8 @@ export const styles = StyleSheet.create({
     },
     modalButton: {
         flex: 1,
-        padding: 10,
-        borderRadius: 5,
+        padding: 12,
+        borderRadius: 20,
         alignItems: 'center',
         marginHorizontal: 5,
     },
@@ -199,12 +282,25 @@ export const styles = StyleSheet.create({
         backgroundColor: '#e74c3c',
     },
     acceptButton: {
-        backgroundColor: '#2ecc71',
+        backgroundColor: '#25D366',
     },
     buttonText: {
         color: '#fff',
         fontSize: 16,
-        fontWeight: 'bold',
+        fontWeight: '600',
+    },
+    // *** New Styles for Groups Screen ***
+    groupItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#e0e0e0',
+    },
+    groupName: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#333333',
     },
     avatarPlaceholder: {
         width: 50,
@@ -218,91 +314,27 @@ export const styles = StyleSheet.create({
         fontSize: 20,
         color: '#ffffff',
     },
-    
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: '600',
-      },
-      loader: {
-        marginTop: 20,
-      },
-      emptyContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 20,
-      },
-      emptyText: {
-        fontSize: 16,
-        color: '#8E8E93',
-        textAlign: 'center',
-      },
-      fab: {
+    // Optional: Adjust statusIndicator for groups if needed
+    groupStatusIndicator: {
         position: 'absolute',
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: '#6200ee',
+        bottom: 0,
+        right: -2,
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        borderWidth: 2,
+        borderColor: '#ffffff',
+    },
+    modalContainer: {
+        width: '90%',  // Adjusted to use 90% of the screen width
+        backgroundColor: '#fff',
+        padding: 25,
+        borderRadius: 15,
         alignItems: 'center',
-        justifyContent: 'center',
-        right: 20,
-        bottom: 30,
-        elevation: 5,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
+        shadowOpacity: 0.25,
         shadowRadius: 4,
-      },
-      fabIcon: {
-        fontSize: 30,
-        color: '#fff',
-        lineHeight: 30,
-      },
-      modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        alignItems: 'center',
-        justifyContent: 'center',
-      },
-      typingText: {
-        fontSize: 14,
-        color: '#8E8E93',
-        marginTop: 2,
-        fontStyle: 'italic',
-      },
-      
-    
-      // User Selection Modal styles
-      userModalContainer: {
-        width: '80%',
-        maxHeight: '80%',
-        backgroundColor: '#fff',
-        borderRadius: 10,
-        padding: 20,
-      },
-    
-      userItemModal: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 10,
-        borderBottomColor: '#ddd',
-        borderBottomWidth: 1,
-      },
-      userAvatar: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-      },
-      userInfoModal: {
-        marginLeft: 10,
-      },
-      userNameModal: {
-        fontSize: 16,
-        fontWeight: '500',
-      },
-      userStatusModal: {
-        fontSize: 14,
-        color: '#666',
-      },
-      
+        elevation: 5,
+      }
 });

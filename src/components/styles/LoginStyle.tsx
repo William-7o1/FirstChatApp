@@ -1,4 +1,8 @@
-import { StyleSheet } from "react-native";
+
+import { StyleSheet, Dimensions } from "react-native";
+
+// Get device dimensions for responsive design
+const { width, height } = Dimensions.get('window');
 
 export const styles = StyleSheet.create({
     container: {
@@ -6,65 +10,106 @@ export const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#ffffff', // Clean white background
     },
     logo: {
-        width: 120,
-        height: 120,
-        marginBottom: 30,
+        width: width * 0.3, // Responsive width
+        height: width * 0.3,
+        resizeMode: 'contain',
+        marginBottom: 20,
     },
     title: {
-        fontSize: 30,
-        fontWeight: 'bold',
-        marginBottom: 10,
-        color: '#333',
+        fontSize: 26,
+        fontWeight: '700',
+        marginBottom: 5,
+        color: '#075E54', // WhatsApp green
+    },
+    subtitle: {
+        fontSize: 16,
+        color: '#555555',
+        marginBottom: 25,
     },
     loader: {
         marginVertical: 20,
     },
-    loginButton: {
-        marginTop:10,
-        backgroundColor: '#6200ee',
-        paddingVertical: 15,
-        paddingHorizontal: 40,
+    inputContainer: {
+        width: '100%',
+        marginBottom: 15,
+    },
+    input: {
+        width: '100%',
+        paddingVertical: 12,
+        paddingHorizontal: 15,
+        borderColor: '#e0e0e0',
+        borderWidth: 1,
         borderRadius: 25,
-        marginBottom: 20,
+        backgroundColor: '#f0f0f0',
+        fontSize: 16,
+        color: '#333333',
+    },
+    loginButton: {
+        backgroundColor: '#25D366', // WhatsApp green
+        paddingVertical: 12,
+        paddingHorizontal: 30,
+        borderRadius: 25,
+        alignItems: 'center',
+        shadowColor: '#25D366',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3,
+        elevation: 3, // For Android shadow
+        marginBottom: 15,
+        width: '100%',
     },
     loginButtonText: {
-        color: '#fff',
-        fontSize: 18,
+        color: '#ffffff',
+        fontSize: 16,
         fontWeight: '600',
     },
     newUserText: {
-        marginTop: 50, // Adjust as needed
         textAlign: 'center',
-        fontSize: 16,
-        color: '#000',
+        fontSize: 14,
+        color: '#555555',
+        marginTop:30,
+        paddingBottom:10
     },
     newUserButton: {
-        marginTop: 10,
-        backgroundColor: '#03dac5',
-        paddingVertical: 15,
-        paddingHorizontal: 40,
+        marginTop: 8,
+        backgroundColor: '#128C7E', // Darker WhatsApp green
+        paddingVertical: 12,
+        paddingHorizontal: 30,
         borderRadius: 25,
-        marginBottom: 20,
+        alignItems: 'center',
+        shadowColor: '#128C7E',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3,
+        elevation: 3,
+        width: '100%',
     },
     newUserButtonText: {
-        color: '#fff',
-        fontSize: 22,
+        color: '#ffffff',
+        fontSize: 16,
         fontWeight: '600',
     },
     logoutButton: {
         backgroundColor: '#ff5252',
-        paddingVertical: 15,
-        paddingHorizontal: 40,
-        borderRadius: 25,
+        paddingVertical: 10,
+        paddingHorizontal: 25,
+        borderRadius: 20,
         position: 'absolute',
         bottom: 20,
+        shadowColor: '#ff5252',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3,
+        elevation: 3,
+        marginTop:30,
+        marginBottom:20
     },
     logoutButtonText: {
-        color: '#fff',
-        fontSize: 18,
+        color: '#ffffff',
+        fontSize: 14,
         fontWeight: '600',
     },
     modalContainer: {
@@ -75,23 +120,33 @@ export const styles = StyleSheet.create({
     },
     modalContent: {
         width: '80%',
-        backgroundColor: '#fff',
+        backgroundColor: '#ffffff',
         padding: 20,
-        borderRadius: 10,
+        borderRadius: 15,
         alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
     },
     modalTitle: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        marginBottom: 20,
+        fontSize: 18,
+        fontWeight: '700',
+        marginBottom: 15,
+        color: '#333333',
     },
-    input: {
+    modalInput: {
         width: '100%',
-        padding: 10,
-        borderColor: '#ccc',
+        paddingVertical: 10,
+        paddingHorizontal: 15,
+        borderColor: '#e0e0e0',
         borderWidth: 1,
-        borderRadius: 5,
-        marginBottom: 20,
+        borderRadius: 20,
+        backgroundColor: '#f0f0f0',
+        fontSize: 16,
+        color: '#333333',
+        marginBottom: 15,
     },
     modalButtons: {
         flexDirection: 'row',
@@ -99,13 +154,23 @@ export const styles = StyleSheet.create({
         width: '100%',
     },
     modalButton: {
-        backgroundColor: '#6200ee',
+        backgroundColor: '#25D366',
         paddingVertical: 10,
         paddingHorizontal: 20,
-        borderRadius: 5,
+        borderRadius: 20,
+        alignItems: 'center',
+        flex: 1,
+        marginHorizontal: 5,
     },
     modalButtonText: {
-        color: '#fff',
+        color: '#ffffff',
         fontSize: 16,
+        fontWeight: '600',
+    },
+    cancelButton: {
+        backgroundColor: '#cccccc',
+    },
+    cancelButtonText: {
+        color: '#333333',
     },
 });
