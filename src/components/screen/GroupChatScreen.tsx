@@ -180,7 +180,7 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     
         try {
             const fetchedMessages = await messagesRequest.fetchPrevious();
-            console.log("Fetched Messages:", fetchedMessages); // For debugging
+            // console.log("Fetched Messages:", fetchedMessages); // For debugging
     
             const messagesMap = new Map<string, any>();
 
@@ -259,7 +259,7 @@ const GroupChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
                 }
 
                 // Debugging: Log processed messages
-                console.log(`Processed Message ID: ${msg.id}, Edited: ${msg.edited || false}, Status: ${msg.status}`);
+                // console.log(`Processed Message ID: ${msg.id}, Edited: ${msg.edited || false}, Status: ${msg.status}`);
             });
 
             const validMessages = Array.from(messagesMap.values()).reverse();

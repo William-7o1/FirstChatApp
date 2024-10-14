@@ -5,3 +5,11 @@ export const AppConstants = {
     // UID: 'cometchat-uid-1'
     UID: '',
 }
+
+// export const AppConstants = {
+//     APP_ID: '254394c7a353efc1', // Enter your App ID
+//     REGION: 'in', // Enter your App Region
+//     AUTH_KEY: 'd1c81034290688e9bcad2429da4a3365fc2b2a71', // Enter your App Auth Key
+//     // UID: 'cometchat-uid-1'
+//     UID: '',
+// }

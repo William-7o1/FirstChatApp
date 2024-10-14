@@ -80,10 +80,10 @@ export const createMessageHelper = ({
           console.log('onMessagesDelivered:', messageReceipt);
           updateMessageReceipt(messageReceipt, 'delivered');
         },
-        onMessagesRead: (messageReceipt) => {
-          console.log('onMessagesRead:', messageReceipt);
-          updateMessageReceipt(messageReceipt, 'read');
-        },
+        // onMessagesRead: (messageReceipt) => {
+        //   console.log('onMessagesRead:', messageReceipt);
+        //   updateMessageReceipt(messageReceipt, 'read');
+        // },
       })
     );
   };

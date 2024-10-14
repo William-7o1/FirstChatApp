@@ -91,13 +91,13 @@ export const styles = StyleSheet.create({
         backgroundColor: '#F0F0F0',
         alignSelf: 'flex-start',
     },
-    deletedMessage: {
-        backgroundColor: '#FFCCCB',
-    },
-    deletedText: {
-        color: '#A9A9A9',
-        fontStyle: 'italic',
-    },
+    // deletedMessage: {
+    //     backgroundColor: '#FFCCCB',
+    // },
+    // deletedText: {
+    //     color: '#A9A9A9',
+    //     fontStyle: 'italic',
+    // },
     messageText: {
         fontSize: 16,
         color: '#333',
@@ -251,5 +251,12 @@ modalOverlay: {
     color: '#fff',
     fontSize: 12,
     marginLeft: 'auto',
+  },
+  deletedMessage: {
+    backgroundColor: '#FFCCCB', // Color for deleted messages
+  },
+  deletedText: {
+      color: '#A9A9A9',
+      fontStyle: 'italic',
   },
 });

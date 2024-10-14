@@ -175,12 +175,6 @@ const FriendsScreen: React.FC = () => {
             }
           });
         },
-        onMessagesRead: (messageReceipt: CometChat.MessageReceipt) => {
-          handleReadReceipt(messageReceipt);
-        },
-        onMessageReadReceipt: (messageReceipt: CometChat.MessageReceipt) => {
-          handleReadReceipt(messageReceipt);
-        },
         onTypingStarted: (typingIndicator: CometChat.TypingIndicator) => {
           const { sender, receiverId, receiverType } = typingIndicator;
           if (receiverType === 'user') {
@@ -314,25 +308,24 @@ const FriendsScreen: React.FC = () => {
     }
   };
 
-  const handleReadReceipt = (messageReceipt: CometChat.MessageReceipt) => {
-    const { sender, receiverId } = messageReceipt;
-    const currentUser = CometChat.getLoggedinUser();
+  // const handleReadReceipt = (messageReceipt: CometChat.MessageReceipt) => {
+  //   const { sender, receiverId } = messageReceipt;
+  //   const currentUser = CometChat.getLoggedinUser();
 
-    if (currentUser) {
-      const currentUserID = currentUser.getUid();
-
-      // Check if the current user is the receiver of the read receipt
-      if (messageReceipt.getReceiverType() === 'user' && receiverId === currentUserID) {
-        setConversations(prevConversations =>
-          prevConversations.map(conversation =>
-            conversation.conversationWith.uid === sender.uid
-              ? { ...conversation, unreadMessageCount: 0 }
-              : conversation
-          )
-        );
-      }
-    }
-  };
+  //   if (currentUser) {
+  //     const currentUserID = currentUser.getUid();
+  //     // Check if the current user is the receiver of the read receipt
+  //     if (messageReceipt.getReceiverType() === 'user' && receiverId === currentUserID) {
+  //       setConversations(prevConversations =>
+  //         prevConversations.map(conversation =>
+  //           conversation.conversationWith.uid === sender.uid
+  //             ? { ...conversation, unreadMessageCount: 0 }
+  //             : conversation
+  //         )
+  //       );
+  //     }
+  //   }
+  // };
 
   const acceptIncomingCall = (sessionID: string) => {
     setIncomingCallVisible(false);
@@ -600,9 +593,9 @@ const GroupsScreen: React.FC = () => {
         onCustomMessageReceived: (message: CometChat.CustomMessage) => {
           handleIncomingMessage(message);
         },
-        onMessagesRead: (messageReceipt: CometChat.MessageReceipt) => {
-          handleReadReceipt(messageReceipt);
-        },
+        // onMessagesRead: (messageReceipt: CometChat.MessageReceipt) => {
+        //   handleReadReceipt(messageReceipt);
+        // },
       })
     );
 
