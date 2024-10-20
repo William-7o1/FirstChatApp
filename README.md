@@ -39,7 +39,6 @@ Open the file src/constants.js and replace the placeholder values with your cred
 
 <img src="https://github.com/user-attachments/assets/8e2ca214-8e2f-4e4c-a302-ce0a1c7ff654" alt="Screenshot 9" width="400"/>
 <img src="https://github.com/user-attachments/assets/88a4c2ce-14da-47eb-a93f-04ce0e529834" alt="Screenshot 10" width="400"/>
-<img src="https://github.com/user-attachments/assets/1be17037-419a-4c9e-bfdf-a53fdcb0232a" alt="Screenshot 11" width="400"/>
 <img src="https://github.com/user-attachments/assets/a0c6b8fa-05b6-4b05-91ab-9deff28a75b8" alt="Screenshot 12" width="400"/>
 <img src="https://github.com/user-attachments/assets/8b89cbe1-6f0b-4c71-918c-b684edb6fd8e" alt="Screenshot 13" width="400"/>
 
