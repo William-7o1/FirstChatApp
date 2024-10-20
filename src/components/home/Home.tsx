@@ -10,7 +10,6 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation, NavigationProp, useFocusEffect } from '@react-navigation/native';
@@ -308,25 +307,6 @@ const FriendsScreen: React.FC = () => {
     }
   };
 
-  // const handleReadReceipt = (messageReceipt: CometChat.MessageReceipt) => {
-  //   const { sender, receiverId } = messageReceipt;
-  //   const currentUser = CometChat.getLoggedinUser();
-
-  //   if (currentUser) {
-  //     const currentUserID = currentUser.getUid();
-  //     // Check if the current user is the receiver of the read receipt
-  //     if (messageReceipt.getReceiverType() === 'user' && receiverId === currentUserID) {
-  //       setConversations(prevConversations =>
-  //         prevConversations.map(conversation =>
-  //           conversation.conversationWith.uid === sender.uid
-  //             ? { ...conversation, unreadMessageCount: 0 }
-  //             : conversation
-  //         )
-  //       );
-  //     }
-  //   }
-  // };
-
   const acceptIncomingCall = (sessionID: string) => {
     setIncomingCallVisible(false);
     setCaller(null);
@@ -593,9 +573,6 @@ const GroupsScreen: React.FC = () => {
         onCustomMessageReceived: (message: CometChat.CustomMessage) => {
           handleIncomingMessage(message);
         },
-        // onMessagesRead: (messageReceipt: CometChat.MessageReceipt) => {
-        //   handleReadReceipt(messageReceipt);
-        // },
       })
     );
 

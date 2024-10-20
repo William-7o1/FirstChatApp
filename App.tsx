@@ -8,26 +8,11 @@ import ChatScreen from './src/components/screen/ChatScreen';
 import GroupChatScreen from './src/components/screen/GroupChatScreen';
 import CallingScreen from './src/components/screen/CallingScreen'
 import { CallProvider } from './CallContext';
-import { CometChat } from '@cometchat/chat-sdk-react-native';
 
 const Stack = createNativeStackNavigator();
 
 
 function App() {
-//   useEffect(() => {
-
-//     CometChat.addMessageListener("hereasf", new CometChat.MessageListener({
-//       onMessagesDelivered: () => {
-//         console.log("Deli listener");
-//       },
-//       onMessagesRead: () => {
-//         console.log("Read listener");
-//       },
-//       onTextMessageReceived: () => {
-//         console.log("msg received listener");
-//       }
-//     }))
-// })
   return (
     <CallProvider>
     <NavigationContainer>

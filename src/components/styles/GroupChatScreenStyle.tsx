@@ -46,11 +46,6 @@ export const styles = StyleSheet.create({
         color: 'white',
         fontWeight: 'bold',
     },
-    // headerContent: {
-    //     flex: 1,
-    //     flexDirection: 'row',
-    //     alignItems: 'center',
-    // },
     avatar: {
         width: 40,
         height: 40,
@@ -72,13 +67,7 @@ export const styles = StyleSheet.create({
         color: 'white',
         fontStyle: 'italic',
         marginTop: 3, // Adjust this to control spacing between name and typing indicator
-        // backgroundColor: 'rgba(255, 0, 0, 0.2)',  // Temporary background to test visibility
     },
-    // headerText: {
-    //     fontSize: 18,
-    //     fontWeight: 'bold',
-    //     color: '#fff',
-    // },
     messageList: {
         paddingBottom: 15,
     },
@@ -146,11 +135,9 @@ export const styles = StyleSheet.create({
     modalContainer: {
         flex: 1,
         justifyContent: 'center',
-        // alignItems: 'center',
         backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent background
     },
     modalContent: {
-        // width: '90%',
         flex:1,
         backgroundColor: '#FFFFFF',
         borderRadius: 10,
@@ -169,7 +156,6 @@ export const styles = StyleSheet.create({
     },
     membersList: {
         maxHeight: '90%',
-        // width:'100%',
         marginBottom: 10,
     },
     memberItem: {
@@ -212,11 +198,8 @@ export const styles = StyleSheet.create({
         marginLeft: 5, // Add space between buttons
     },
     leaveButtonText: {
-        // color: '#fff',
         paddingVertical:10,
         fontSize:18,
-        // fontWeight: 'bold',
-        // textAlign: 'center',
         color: '#fff',
         fontWeight: 'bold',
         textAlign: 'center', // Center text within the button
